@@ -87,8 +87,8 @@ typedef struct {
 	int				num_entities;		// current number, <= MAX_GENTITIES
 
 	// serverside demo recording
-	fileHandle_t	demoFile;
-	demoState_t		demoState;
+	fileHandle_t		demoFile;
+	demoState_t	demoState;
 	char			demoName[MAX_QPATH];
 
 	// serverside demo recording - previous frame for delta compression
