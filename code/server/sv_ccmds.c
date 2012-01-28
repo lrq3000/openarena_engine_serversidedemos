@@ -43,7 +43,7 @@ static void SV_CompleteDemoName( char *args, int argNum )
 		char demoExt[ 16 ];
 
 		Com_sprintf( demoExt, sizeof( demoExt ), ".svdm_%d", PROTOCOL_VERSION );
-		Field_CompleteFilename( "svdemos", demoExt, qtrue );
+		Field_CompleteFilename( "svdemos", demoExt, qtrue, qtrue );
 	}
 }
 
