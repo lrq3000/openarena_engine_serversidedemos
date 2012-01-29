@@ -2,20 +2,20 @@
 ===========================================================================
 Copyright (C) 2008 Amanieu d'Antras
 
-This file is part of Tremfusion.
+This file is part of Tremulous.
 
-Tremfusion is free software; you can redistribute it
+Tremulous is free software; you can redistribute it
 and/or modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
 or (at your option) any later version.
 
-Tremfusion is distributed in the hope that it will be
+Tremulous is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with Tremfusion; if not, write to the Free Software
+along with Tremulous; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // Headers for demo messages
 typedef enum {
 	demo_endFrame,
+	demo_configString,
 	demo_serverCommand,
 	demo_gameCommand,
 	demo_entityState,
@@ -37,10 +38,7 @@ typedef enum {
 } demo_ops_e;
 
 // Big fat buffer to store all our stuff
-static byte buf[0x400000];
-
-// Save maxclients and democlients and restore them after the demo
-static int savedMaxClients, savedDemoClients;
+byte buf[0x400000];
 
 /*
 ====================
@@ -93,6 +91,24 @@ void SV_DemoWriteGameCommand(int cmd, const char *str)
 	MSG_WriteByte(&msg, demo_gameCommand);
 	MSG_WriteByte(&msg, cmd);
 	MSG_WriteString(&msg, str);
+	SV_DemoWriteMessage(&msg);
+}
+
+/*
+====================
+SV_DemoWriteConfigString
+
+Write a client configstring to the demo file
+====================
+*/
+void SV_DemoWriteConfigString(int client)
+{
+	msg_t msg;
+
+	MSG_Init(&msg, buf, sizeof(buf));
+	MSG_WriteByte(&msg, demo_configString);
+	MSG_WriteBits(&msg, client, CLIENTNUM_BITS);
+	MSG_WriteString(&msg, sv.configstrings[CS_PLAYERS + client]);
 	SV_DemoWriteMessage(&msg);
 }
 
@@ -197,7 +213,7 @@ exit_loop:
 			{
 			default:
 				Com_Error(ERR_DROP, "SV_DemoReadFrame: Illegible demo message\n");
-				return;	
+				return;
 			case demo_EOF:
 				MSG_Clear(&msg);
 				goto exit_loop;
@@ -217,6 +233,10 @@ exit_loop:
 				// Set the server time
 				sv.time = MSG_ReadLong(&msg);
 				return;
+			case demo_configString:
+				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+				SV_SetConfigstring(CS_PLAYERS + num, MSG_ReadString(&msg), qtrue);
+				break;
 			case demo_serverCommand:
 				Cmd_SaveCmdContext();
 				Cmd_TokenizeString(MSG_ReadString(&msg));
@@ -283,15 +303,24 @@ sv.demo* have already been set and the demo file opened, start writing gamestate
 void SV_DemoStartRecord(void)
 {
 	msg_t msg;
+	int i;
 
 	MSG_Init(&msg, buf, sizeof(buf));
 
+	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)
+	MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
 	// Write current time
 	MSG_WriteLong(&msg, sv.time);
 	// Write map name
 	MSG_WriteString(&msg, sv_mapname->string);
-	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)
-	MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
+	SV_DemoWriteMessage(&msg);
+
+	// Write client configstrings
+	for (i = 0; i < sv_maxclients->integer; i++)
+	{
+		if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
+			SV_DemoWriteConfigString(i);
+	}
 	SV_DemoWriteMessage(&msg);
 
 	// Write entities and players
@@ -364,8 +393,13 @@ void SV_DemoStartPlayback(void)
 	}
 
 	// Check slots, time and map
-	savedMaxClients = sv_maxclients->integer;
-	savedDemoClients = sv_democlients->integer;
+	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+	if (sv_democlients->integer < clients)
+	{
+		Com_Printf("Not enough demo slots, increase sv_democlients to %d.\n", clients);
+		SV_DemoStopPlayback();
+		return;
+	}
 	r = MSG_ReadLong(&msg);
 	if (r < 400)
 	{
@@ -380,30 +414,10 @@ void SV_DemoStartPlayback(void)
 		SV_DemoStopPlayback();
 		return;
 	}
-	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS);
-	if (sv_democlients->integer < clients)
-	{
-		int count = 0;
-		// get the number of clients in use
-		for ( i = 0 ; i < sv_maxclients->integer ; i++ ) {
-			if ( svs.clients[i].state >= CS_CONNECTED ) {
-				count++;
-			}
-		}
-		if ( clients + count > MAX_CLIENTS ) {
-			Com_Printf("Not enough slots to fit all connected clients and all demo clients." \
-			           "%d clients needs to disconnect.\n", clients + count - MAX_CLIENTS);
-			SV_DemoStopPlayback();
-			return;
-		}
-		Cvar_SetValue("sv_democlients", clients);
-		Cvar_SetValue("sv_maxclients", clients + count);
-	}
 	if (!com_sv_running->integer || strcmp(sv_mapname->string, s) ||
-	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time ||
-	    sv_maxclients->modified || sv_democlients->modified)
+	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time)
 	{
-		// Change to the right map and start the demo with a g_warmup second delay
+		// Change to the right map and start the demo with a 20 second delay
 		Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
 		SV_DemoStopPlayback();
 		return;
@@ -413,6 +427,8 @@ void SV_DemoStartPlayback(void)
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
 	Com_Memset(sv.demoPlayerStates, 0, sizeof(sv.demoPlayerStates));
 	Cvar_SetValue("sv_democlients", clients);
+	for (i = 0; i < sv_democlients->integer; i++)
+		SV_SetConfigstring(CS_PLAYERS + i, NULL, qtrue);
 	SV_DemoReadFrame();
 	Com_Printf("Playing demo %s.\n", sv.demoName);
 	sv.demoState = DS_PLAYBACK;
@@ -428,14 +444,15 @@ Close the demo file and restart the map
 */
 void SV_DemoStopPlayback(void)
 {
+	// Clear client configstrings
+	int i;
+	for (i = 0; i < sv_democlients->integer; i++)
+		SV_SetConfigstring(CS_PLAYERS + i, NULL, qtrue);
+
 	FS_FCloseFile(sv.demoFile);
 	sv.demoState = DS_NONE;
 	Cvar_SetValue("sv_demoState", DS_NONE);
 	Com_Printf("Stopped playing demo %s.\n", sv.demoName);
-
-	// restore maxclients and democlients
-	Cvar_SetValue("sv_maxclients", savedMaxClients);
-	Cvar_SetValue("sv_democlients", savedDemoClients);
 
 	// demo hasn't actually started yet
 	if (sv.demoState != DS_PLAYBACK)

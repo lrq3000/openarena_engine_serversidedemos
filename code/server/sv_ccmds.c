@@ -280,7 +280,7 @@ static void SV_MapRestart_f( void ) {
 	}
 	if( delay && !Cvar_VariableValue("g_doWarmup") ) {
 		sv.restartTime = sv.time + delay * 1000;
-		SV_SetConfigstring( CS_WARMUP, va("%i", sv.restartTime), qtrue );
+		SV_SetConfigstring( CS_WARMUP, va("%i", sv.restartTime) );
 		return;
 	}
 
@@ -1372,11 +1372,15 @@ static void SV_Demo_Play_f( void ) {
         else
                 Com_sprintf(sv.demoName, sizeof(sv.demoName), "svdemos/%s.svdm_%d", arg, PROTOCOL_VERSION);
 
-        FS_FOpenFileRead(sv.demoName, &sv.demoFile, qtrue);
+
+        //FS_FileExists(sv.demoName);
+	FS_FOpenFileRead(sv.demoName, &sv.demoFile, qtrue);
         if (!sv.demoFile) {
                 Com_Printf("ERROR: Couldn't open %s for reading.\n", sv.demoName);
                 return;
         }
+
+	//sv.demoFile = fopen ("C:\\Users\\LRQ\\DOWNLO~1\\oa081\\OPENAR~1.1\\AppData\\OpenArena\\baseoa\\svdemos\\20120128234426-ps37ctf.svdm_71", "rb");
         SV_DemoStartPlayback();
 }
 

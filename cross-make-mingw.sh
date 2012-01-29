@@ -1,7 +1,7 @@
 #!/bin/sh
 
 export CC=i586-mingw32msvc-gcc
-export WINDRES=i586-mingw32msvc-windres
+export WINDRES=windres.exe
 export PLATFORM=mingw32
 if [ !$ARCH ]
 then
