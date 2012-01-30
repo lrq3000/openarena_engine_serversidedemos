@@ -197,7 +197,7 @@ exit_loop:
 			{
 			default:
 				Com_Error(ERR_DROP, "SV_DemoReadFrame: Illegible demo message\n");
-				return;	
+				return;
 			case demo_EOF:
 				MSG_Clear(&msg);
 				goto exit_loop;

@@ -1564,8 +1564,7 @@ void MSG_ReadDeltaPlayerstate (msg_t *msg, playerState_t *from, playerState_t *t
 					trunc = MSG_ReadBits( msg, FLOAT_INT_BITS );
 					// bias to allow equal parts positive and negative
 					trunc -= FLOAT_INT_BIAS;
-
-										*(float *)toF = trunc; 
+					*(float *)toF = trunc; 
 					if ( print ) {
 						Com_Printf( "%s:%i ", field->name, trunc );
 					}
