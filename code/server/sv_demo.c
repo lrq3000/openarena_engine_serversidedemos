@@ -404,10 +404,13 @@ void SV_DemoStartPlayback(void)
 	    sv_maxclients->modified || sv_democlients->modified)
 	{
 		// Change to the right map and start the demo with a g_warmup second delay
-		Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
+		//Cbuf_AddText(va("devmap %s\ndelay %d\n%s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
+		Cbuf_AddText(va("devmap %s\nwait 200\n%s\n", s, Cmd_Cmd()));
 		SV_DemoStopPlayback();
 		return;
 	}
+
+	Com_Printf("DEBUGGBO1");
 
 	// Initialize our stuff
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));

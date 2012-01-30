@@ -966,8 +966,6 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 
 	hash = 0;
 
-	Com_Printf( "DEBUGGBO: test0\n");
-
 	if ( !fs_searchpaths ) {
 		Com_Error( ERR_FATAL, "Filesystem call made without initialization\n" );
 	}
@@ -1006,7 +1004,6 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 		}
 		return qfalse;
 	}
-	Com_Printf( "DEBUGGBO: test1\n");
 
 	if ( !filename ) {
 		Com_Error( ERR_FATAL, "FS_FOpenFileRead: NULL 'filename' parameter passed\n" );
@@ -1017,8 +1014,6 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 	if ( filename[0] == '/' || filename[0] == '\\' ) {
 		filename++;
 	}
-
-	Com_Printf( "DEBUGGBO: test2\n");
 
 	// make absolutely sure that it can't back up the path.
 	// The searchpaths do guarantee that something will always
@@ -1035,8 +1030,6 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 		return -1;
 	}
 
-	Com_Printf( "DEBUGGBO: test3\n");
-
 	//
 	// search through the path, one element at a time
 	//
@@ -1051,7 +1044,6 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 		}
 		// is the element a pak file?
 		if ( search->pack && search->pack->hashTable[hash] ) {
-			Com_Printf( "DEBUGGBO: testA: %s in %s\n", filename, search);
 
 			// disregard if it doesn't match one of the allowed pure pak files
 			if ( !FS_PakIsPure(search->pack) ) {
@@ -1122,7 +1114,6 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 				pakFile = pakFile->next;
 			} while(pakFile != NULL);
 		} else if ( search->dir ) {
-			Com_Printf( "DEBUGGBO: testB: %s in %s\n", filename, search);
 
 			// check a file in the directory tree
 
@@ -1147,33 +1138,24 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 			}
 			*/
 
-			Com_Printf( "DEBUGGBO: testB1\n");
 			dir = search->dir;
-			Com_Printf( "DEBUGGBO: testB2: %s and %s\n", dir->path, dir->gamedir);
 
 			netpath = FS_BuildOSPath( dir->path, dir->gamedir, filename );
-			Com_Printf( "DEBUGGBO: testB3: %s\n", netpath);
 			fsh[*file].handleFiles.file.o = fopen (netpath, "rb");
 			if ( !fsh[*file].handleFiles.file.o ) {
 				continue;
 			}
 
-			Com_Printf( "DEBUGGBO: testB4\n");
-
 			Q_strncpyz( fsh[*file].name, filename, sizeof( fsh[*file].name ) );
 			fsh[*file].zipFile = qfalse;
-			Com_Printf( "DEBUGGBO: testB5\n");
 			if ( fs_debug->integer ) {
 				Com_Printf( "FS_FOpenFileRead: %s (found in '%s/%s')\n", filename,
 					dir->path, dir->gamedir );
 			}
-			Com_Printf( "DEBUGGBO: testB6 - final\n");
 
 			return FS_filelength (*file);
 		}
 	}
-
-	Com_Printf( "DEBUGGBO: test4\n");
 
 #ifdef FS_MISSING
 	if (missingFiles) {
