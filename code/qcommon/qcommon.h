@@ -415,6 +415,10 @@ void Cbuf_Execute (void);
 // Normally called once per frame, but may be explicitly invoked.
 // Do not call inside a command function, or current args will be destroyed.
 
+void Cdelay_Frame (void);
+//Check if a delayed command have to be executed and decreases the remaining
+//delay time for all of them
+
 //===========================================================================
 
 /*
@@ -440,6 +444,7 @@ void	Cmd_RemoveCommand( const char *cmd_name );
 typedef void (*completionFunc_t)( char *args, int argNum );
 
 void	Cmd_CommandCompletion( void(*callback)(const char *s) );
+void	Cmd_DelayCompletion( void(*callback)(const char *s) );
 // callback with each valid string
 void Cmd_SetCommandCompletionFunc( const char *command,
 	completionFunc_t complete );
@@ -752,6 +757,7 @@ void Field_AutoComplete( field_t *edit );
 void Field_CompleteKeyname( void );
 void Field_CompleteFilename( const char *dir,
 		const char *ext, qboolean stripExt, qboolean allowNonPureFilesOnDisk );
+void Field_CompleteDelay( void );
 void Field_CompleteCommand( char *cmd,
 		qboolean doCommands, qboolean doCvars );
 

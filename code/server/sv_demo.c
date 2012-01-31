@@ -421,8 +421,8 @@ void SV_DemoStartPlayback(void)
 	    sv_maxclients->modified || sv_democlients->modified)
 	{
 		// Change to the right map and start the demo with a g_warmup second delay
-		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
-		Cbuf_AddText(va("devmap %s\ndelay %d\n%s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // DEBUGTEST
+		Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
+		//Cbuf_AddText(va("devmap %s\ndelay %d\n%s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // DEBUGTEST
 		//Cbuf_AddText(va("devmap %s\nwait 200\n%s\n", s, Cmd_Cmd()));
 		SV_DemoStopPlayback();
 		return;
@@ -466,12 +466,12 @@ void SV_DemoStopPlayback(void)
 	Cvar_SetValue("sv_democlients", savedDemoClients);
 
 	// demo hasn't actually started yet
-/* // DEBUGTEST
+
 	if (sv.demoState != DS_PLAYBACK)
 #ifdef DEDICATED
 		Cbuf_AddText("map_restart 0\n");
 #else
 		Cbuf_AddText("killserver\n");
 #endif
-*/
+
 }
