@@ -173,7 +173,6 @@ void SV_DemoReadFrame(void)
 exit_loop:
 		// Get a message
 		r = FS_Read(&msg.cursize, 4, sv.demoFile);
-		//Com_Printf("DEBUGGBOA: %d\n", r);
 		if (r != 4)
 		{
 			SV_DemoStopPlayback();
@@ -183,11 +182,9 @@ exit_loop:
 		if (msg.cursize > msg.maxsize)
 			Com_Error(ERR_DROP, "SV_DemoReadFrame: demo message too long");
 		r = FS_Read(msg.data, msg.cursize, sv.demoFile);
-		//Com_Printf("DEBUGGBOB: %d\n", r);
-		//Com_Printf("DEBUGGBOB2: %d\n", msg.cursize);
 		if (r != msg.cursize)
 		{
-			//Com_Printf("Demo file was truncated.\n");
+			Com_Printf("Demo file was truncated.\n");
 			SV_DemoStopPlayback();
 			return;
 		}
@@ -195,25 +192,19 @@ exit_loop:
 		// Parse the message
 		while (1)
 		{
-			//Com_Printf("DEBUGGBOPREMSG\n");
 			cmd = MSG_ReadByte(&msg);
-			//Com_Printf("DEBUGGBOPOSTMSG\n");
 			switch (cmd)
 			{
 			default:
-				//Com_Printf("DEBUGGBOS1\n");
 				Com_Error(ERR_DROP, "SV_DemoReadFrame: Illegible demo message\n");
-				return;
+				return;	
 			case demo_EOF:
-				//Com_Printf("DEBUGGBOS2\n");
 				MSG_Clear(&msg);
 				goto exit_loop;
 			case demo_endDemo:
-				//Com_Printf("DEBUGGBOS3\n");
 				SV_DemoStopPlayback();
 				return;
 			case demo_endFrame:
-				//Com_Printf("DEBUGGBOS4\n");
 				// Overwrite anything the game may have changed
 				for (i = 0; i < sv.num_entities; i++)
 				{
@@ -227,15 +218,12 @@ exit_loop:
 				sv.time = MSG_ReadLong(&msg);
 				return;
 			case demo_serverCommand:
-				//Com_Printf("DEBUGGBOS5\n");
 				Cmd_SaveCmdContext();
 				Cmd_TokenizeString(MSG_ReadString(&msg));
 				SV_SendServerCommand(NULL, "%s \"^3[DEMO] ^7%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
-				Com_Printf("DEBUGGBOS5-2: %s --- %s\n",Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_gameCommand:
-				//Com_Printf("DEBUGGBOS6\n");
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
 				Cmd_TokenizeString(MSG_ReadString(&msg));
@@ -243,14 +231,12 @@ exit_loop:
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_playerState:
-				//Com_Printf("DEBUGGBOS7\n");
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				player = SV_GameClientNum(num);
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
 			case demo_entityState:
-				//Com_Printf("DEBUGGBOS8\n");
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -262,7 +248,6 @@ exit_loop:
 				}
 				break;
 			case demo_entityShared:
-				//Com_Printf("DEBUGGBOS9\n");
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -284,9 +269,7 @@ exit_loop:
 				}
 				break;
 			}
-			//Com_Printf("DEBUGGBOENDSWITCH\n");
 		}
-		//Com_Printf("DEBUGGBOENDWHILE\n");
 	}
 }
 
@@ -422,29 +405,18 @@ void SV_DemoStartPlayback(void)
 	{
 		// Change to the right map and start the demo with a g_warmup second delay
 		Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
-		//Cbuf_AddText(va("devmap %s\ndelay %d\n%s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // DEBUGTEST
-		//Cbuf_AddText(va("devmap %s\nwait 200\n%s\n", s, Cmd_Cmd()));
 		SV_DemoStopPlayback();
 		return;
 	}
 
-	Com_Printf("DEBUGGBO1\n");
-
 	// Initialize our stuff
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
-	Com_Printf("DEBUGGBO2\n");
 	Com_Memset(sv.demoPlayerStates, 0, sizeof(sv.demoPlayerStates));
-	Com_Printf("DEBUGGBO3\n");
 	Cvar_SetValue("sv_democlients", clients);
-	Com_Printf("DEBUGGBO4\n");
 	SV_DemoReadFrame();
-	Com_Printf("DEBUGGBO5\n");
 	Com_Printf("Playing demo %s.\n", sv.demoName);
-	Com_Printf("DEBUGGBO6\n");
 	sv.demoState = DS_PLAYBACK;
-	Com_Printf("DEBUGGBO7\n");
 	Cvar_SetValue("sv_demoState", DS_PLAYBACK);
-	Com_Printf("DEBUGGBO8\n");
 }
 
 /*
@@ -466,12 +438,10 @@ void SV_DemoStopPlayback(void)
 	Cvar_SetValue("sv_democlients", savedDemoClients);
 
 	// demo hasn't actually started yet
-
 	if (sv.demoState != DS_PLAYBACK)
 #ifdef DEDICATED
 		Cbuf_AddText("map_restart 0\n");
 #else
 		Cbuf_AddText("killserver\n");
 #endif
-
 }

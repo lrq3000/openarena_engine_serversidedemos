@@ -44,7 +44,7 @@ void G_WriteClientSessionData( gclient_t *client ) {
 	const char	*s;
 	const char	*var;
 
-	s = va("%i %i %i %i %i %i %i", 
+	s = va("%i %i %i %i %i %i %i",
 		client->sess.sessionTeam,
 		client->sess.spectatorTime,
 		client->sess.spectatorState,
@@ -112,7 +112,7 @@ void G_InitSessionData( gclient_t *client, char *userinfo ) {
 			BroadcastTeamChange( client, -1 );
 		} else {
 			// always spawn as spectator in team games
-			sess->sessionTeam = TEAM_SPECTATOR;	
+			sess->sessionTeam = TEAM_SPECTATOR;
 		}
 	} else {
 		value = Info_ValueForKey( userinfo, "team" );
@@ -124,7 +124,7 @@ void G_InitSessionData( gclient_t *client, char *userinfo ) {
 			default:
 			case GT_FFA:
 			case GT_SINGLE_PLAYER:
-				if ( g_maxGameClients.integer > 0 && 
+				if ( g_maxGameClients.integer > 0 &&
 					level.numNonSpectatorClients >= g_maxGameClients.integer ) {
 					sess->sessionTeam = TEAM_SPECTATOR;
 				} else {
@@ -162,7 +162,7 @@ void G_InitWorldSession( void ) {
 
 	trap_Cvar_VariableStringBuffer( "session", s, sizeof(s) );
 	gt = atoi( s );
-	
+
 	// if the gametype changed since the last session, don't use any
 	// client sessions
 	if ( g_gametype.integer != gt ) {
@@ -187,4 +187,9 @@ void G_WriteSessionData( void ) {
 			G_WriteClientSessionData( &level.clients[i] );
 		}
 	}
+
+	// write values for sv_maxclients and sv_democlients because they invalidate session data
+	trap_Cvar_Set( "session", va( "%i %i",
+		trap_Cvar_VariableIntegerValue( "sv_maxclients" ),
+		trap_Cvar_VariableIntegerValue( "sv_democlients" ) ) );
 }
