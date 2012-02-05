@@ -429,5 +429,5 @@ typedef enum {
 
 	BOTAI_START_FRAME,				// ( int time );
 
-	GAME_DEMO_COMMAND			// ( int cmd, const char *string );
+	GAME_DEMO_COMMAND         // ( int cmd, const char *string );
 } gameExport_t;

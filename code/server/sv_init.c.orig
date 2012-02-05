@@ -111,11 +111,6 @@ void SV_SetConfigstring (int index, const char *val) {
 		Com_Error (ERR_DROP, "SV_SetConfigstring: bad index %i\n", index);
 	}
 
-	// Don't allow the game to overwrite demo player configstrings
-	if ( sv.demoState == DS_PLAYBACK && index >= CS_PLAYERS && index < CS_PLAYERS + sv_democlients->integer ) { // if (!force && sv.demoState == DS_PLAYBACK && ...
-		return;
-	}
-
 	if ( !val ) {
 		val = "";
 	}
@@ -128,11 +123,6 @@ void SV_SetConfigstring (int index, const char *val) {
 	// change the string in sv
 	Z_Free( sv.configstrings[index] );
 	sv.configstrings[index] = CopyString( val );
-
-	// save client strings to demo
-	if ( index >= CS_PLAYERS && index < CS_PLAYERS + sv_maxclients->integer && sv.demoState == DS_RECORDING ) {
-		SV_DemoWriteConfigString( index - CS_PLAYERS );
-	}
 
 	// send it to all the clients if we aren't
 	// spawning a new server

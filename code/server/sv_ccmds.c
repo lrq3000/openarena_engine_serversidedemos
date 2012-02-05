@@ -1360,10 +1360,10 @@ static void SV_Demo_Play_f( void ) {
                 return;
         }
 
-        if (sv_democlients->integer <= 0) {
-                Com_Printf("You need to set sv_democlients to a value greater than 0.\n");
-                return;
-        }
+        //if (sv_democlients->integer <= 0) {
+                //Com_Printf("You need to set sv_democlients to a value greater than 0.\n");
+                //return;
+        //}
 
         // check for an extension .svdm_?? (?? is protocol)
         arg = Cmd_Argv(1);

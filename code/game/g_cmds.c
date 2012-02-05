@@ -44,7 +44,7 @@ void DeathmatchScoreboardMessage( gentity_t *ent ) {
 	scoreFlags = 0;
 
 	numSorted = level.numConnectedClients;
-
+	
 	for (i=0 ; i < numSorted ; i++) {
 		int		ping;
 
@@ -67,12 +67,12 @@ void DeathmatchScoreboardMessage( gentity_t *ent ) {
 		Com_sprintf (entry, sizeof(entry),
 			" %i %i %i %i %i %i %i %i %i %i %i %i %i %i", level.sortedClients[i],
 			cl->ps.persistant[PERS_SCORE], ping, (level.time - cl->pers.enterTime)/60000,
-			scoreFlags, g_entities[level.sortedClients[i]].s.powerups, accuracy,
+			scoreFlags, g_entities[level.sortedClients[i]].s.powerups, accuracy, 
 			cl->ps.persistant[PERS_IMPRESSIVE_COUNT],
 			cl->ps.persistant[PERS_EXCELLENT_COUNT],
-			cl->ps.persistant[PERS_GAUNTLET_FRAG_COUNT],
-			cl->ps.persistant[PERS_DEFEND_COUNT],
-			cl->ps.persistant[PERS_ASSIST_COUNT],
+			cl->ps.persistant[PERS_GAUNTLET_FRAG_COUNT], 
+			cl->ps.persistant[PERS_DEFEND_COUNT], 
+			cl->ps.persistant[PERS_ASSIST_COUNT], 
 			perfect,
 			cl->ps.persistant[PERS_CAPTURES]);
 		j = strlen(entry);
@@ -82,7 +82,7 @@ void DeathmatchScoreboardMessage( gentity_t *ent ) {
 		stringlength += j;
 	}
 
-	trap_SendServerCommand( ent-g_entities, va("scores %i %i %i%s", i,
+	trap_SendServerCommand( ent-g_entities, va("scores %i %i %i%s", i, 
 		level.teamScores[TEAM_RED], level.teamScores[TEAM_BLUE],
 		string ) );
 }
@@ -232,7 +232,7 @@ void Cmd_Give_f (gentity_t *ent)
 
 	if (give_all || Q_stricmp(name, "weapons") == 0)
 	{
-		ent->client->ps.stats[STAT_WEAPONS] = (1 << WP_NUM_WEAPONS) - 1 -
+		ent->client->ps.stats[STAT_WEAPONS] = (1 << WP_NUM_WEAPONS) - 1 - 
 			( 1 << WP_GRAPPLING_HOOK ) - ( 1 << WP_NONE );
 		if (!give_all)
 			return;
@@ -530,12 +530,12 @@ void SetTeam( gentity_t *ent, char *s ) {
 
 			// We allow a spread of two
 			if ( team == TEAM_RED && counts[TEAM_RED] - counts[TEAM_BLUE] > 1 ) {
-				trap_SendServerCommand( clientNum,
+				trap_SendServerCommand( clientNum, 
 					"cp \"Red team has too many players.\n\"" );
 				return; // ignore the request
 			}
 			if ( team == TEAM_BLUE && counts[TEAM_BLUE] - counts[TEAM_RED] > 1 ) {
-				trap_SendServerCommand( clientNum,
+				trap_SendServerCommand( clientNum, 
 					"cp \"Blue team has too many players.\n\"" );
 				return; // ignore the request
 			}
@@ -552,7 +552,7 @@ void SetTeam( gentity_t *ent, char *s ) {
 	if ( (g_gametype.integer == GT_TOURNAMENT)
 		&& level.numNonSpectatorClients >= 2 ) {
 		team = TEAM_SPECTATOR;
-	} else if ( g_maxGameClients.integer > 0 &&
+	} else if ( g_maxGameClients.integer > 0 && 
 		level.numNonSpectatorClients >= g_maxGameClients.integer ) {
 		team = TEAM_SPECTATOR;
 	}
@@ -622,8 +622,8 @@ to free floating spectator mode
 =================
 */
 void StopFollowing( gentity_t *ent ) {
-	ent->client->ps.persistant[ PERS_TEAM ] = TEAM_SPECTATOR;
-	ent->client->sess.sessionTeam = TEAM_SPECTATOR;
+	ent->client->ps.persistant[ PERS_TEAM ] = TEAM_SPECTATOR;	
+	ent->client->sess.sessionTeam = TEAM_SPECTATOR;	
 	ent->client->sess.spectatorState = SPECTATOR_FREE;
 	ent->client->ps.pm_flags &= ~PMF_FOLLOW;
 	ent->r.svFlags &= ~SVF_BOT;
@@ -660,9 +660,6 @@ void Cmd_Team_f( gentity_t *ent ) {
 
 	if ( ent->client->switchTeamTime > level.time ) {
 		trap_SendServerCommand( ent-g_entities, "print \"May not switch teams more than once per 5 seconds.\n\"" );
-		return;
-	} else if( level.demoState == DS_PLAYBACK ) {
-		trap_SendServerCommand( ent-g_entities, "print \"You cannot join a team while a demo is being played\n\"" );
 		return;
 	}
 
@@ -762,14 +759,12 @@ void Cmd_FollowCycle_f( gentity_t *ent, int dir ) {
 		}
 
 		// can only follow connected clients
-		if ( level.clients[ clientnum ].pers.connected != CON_CONNECTED &&
-		!level.clients[ clientnum ].pers.demoClient ) {
+		if ( level.clients[ clientnum ].pers.connected != CON_CONNECTED ) {
 			continue;
 		}
 
 		// can't follow another spectator
-		if ( level.clients[ clientnum ].sess.sessionTeam == TEAM_SPECTATOR &&
-		!level.clients[ clientnum ].pers.demoClient ) {
+		if ( level.clients[ clientnum ].sess.sessionTeam == TEAM_SPECTATOR ) {
 			continue;
 		}
 
@@ -812,7 +807,7 @@ static void G_SayTo( gentity_t *ent, gentity_t *other, int mode, int color, cons
 		return;
 	}
 
-	trap_SendServerCommand( other-g_entities, va("%s \"%s%c%c%s\"",
+	trap_SendServerCommand( other-g_entities, va("%s \"%s%c%c%s\"", 
 		mode == SAY_TEAM ? "tchat" : "chat",
 		name, Q_COLOR_ESCAPE, color, message));
 }
@@ -838,18 +833,16 @@ void G_Say( gentity_t *ent, gentity_t *target, int mode, const char *chatText ) 
 		G_LogPrintf( "say: %s: %s\n", ent->client->pers.netname, chatText );
 		Com_sprintf (name, sizeof(name), "%s%c%c"EC": ", ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE );
 		color = COLOR_GREEN;
-		G_DemoCommand( DC_SERVER_COMMAND, va( "chat \"%s^2%s\"", name, chatText ) );
 		break;
 	case SAY_TEAM:
 		G_LogPrintf( "sayteam: %s: %s\n", ent->client->pers.netname, chatText );
 		if (Team_GetLocationMsg(ent, location, sizeof(location)))
-			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC") (%s)"EC": ",
+			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC") (%s)"EC": ", 
 				ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE, location);
 		else
-			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC")"EC": ",
+			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC")"EC": ", 
 				ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE );
 		color = COLOR_CYAN;
-		//G_DemoCommand( DC_SERVER_COMMAND, va( "tchat \"%s^%c%s\"", name, color, chatText ) );
 		break;
 	case SAY_TELL:
 		if (target && g_gametype.integer >= GT_TEAM &&
@@ -1308,9 +1301,9 @@ void Cmd_CallVote_f( gentity_t *ent ) {
 	ent->client->ps.eFlags |= EF_VOTED;
 
 	trap_SetConfigstring( CS_VOTE_TIME, va("%i", level.voteTime ) );
-	trap_SetConfigstring( CS_VOTE_STRING, level.voteDisplayString );
+	trap_SetConfigstring( CS_VOTE_STRING, level.voteDisplayString );	
 	trap_SetConfigstring( CS_VOTE_YES, va("%i", level.voteYes ) );
-	trap_SetConfigstring( CS_VOTE_NO, va("%i", level.voteNo ) );
+	trap_SetConfigstring( CS_VOTE_NO, va("%i", level.voteNo ) );	
 }
 
 /*
@@ -1345,7 +1338,7 @@ void Cmd_Vote_f( gentity_t *ent ) {
 		trap_SetConfigstring( CS_VOTE_YES, va("%i", level.voteYes ) );
 	} else {
 		level.voteNo++;
-		trap_SetConfigstring( CS_VOTE_NO, va("%i", level.voteNo ) );
+		trap_SetConfigstring( CS_VOTE_NO, va("%i", level.voteNo ) );	
 	}
 
 	// a majority will be determined in CheckVote, which will also account
@@ -1520,7 +1513,7 @@ void Cmd_TeamVote_f( gentity_t *ent ) {
 		trap_SetConfigstring( CS_TEAMVOTE_YES + cs_offset, va("%i", level.teamVoteYes[cs_offset] ) );
 	} else {
 		level.teamVoteNo[cs_offset]++;
-		trap_SetConfigstring( CS_TEAMVOTE_NO + cs_offset, va("%i", level.teamVoteNo[cs_offset] ) );
+		trap_SetConfigstring( CS_TEAMVOTE_NO + cs_offset, va("%i", level.teamVoteNo[cs_offset] ) );	
 	}
 
 	// a majority will be determined in TeamCheckVote, which will also account

@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // Headers for demo messages
 typedef enum {
 	demo_endFrame,
-	demo_configString,
+	//demo_configString,
 	demo_serverCommand,
 	demo_gameCommand,
 	demo_entityState,
@@ -41,10 +41,7 @@ typedef enum {
 static byte buf[0x400000];
 
 // Save maxclients and democlients and restore them after the demo
-static int savedMaxClients = -1;
-static int savedDemoClients = -1;
-static int savedBotMinPlayers = -1;
-static int keepSaved = 0; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched) or if we can restore them
+static int savedMaxClients, savedDemoClients;
 
 /*
 ====================
@@ -112,7 +109,7 @@ void SV_DemoWriteConfigString(int client)
 	msg_t msg;
 
 	MSG_Init(&msg, buf, sizeof(buf));
-	MSG_WriteByte(&msg, demo_configString);
+	//MSG_WriteByte(&msg, demo_configString);
 	MSG_WriteBits(&msg, client, CLIENTNUM_BITS);
 	MSG_WriteString(&msg, sv.configstrings[CS_PLAYERS + client]);
 	SV_DemoWriteMessage(&msg);
@@ -227,15 +224,15 @@ exit_loop:
 				Com_Error(ERR_DROP, "SV_DemoReadFrame: Illegible demo message\n");
 				return;
 			case demo_EOF:
-				Com_Printf("DEBUGGBOS2 - EOF\n");
+				Com_Printf("DEBUGGBOS2\n");
 				MSG_Clear(&msg);
 				goto exit_loop;
 			case demo_endDemo:
-				Com_Printf("DEBUGGBOS3 - ENDDEMO\n");
+				Com_Printf("DEBUGGBOS3\n");
 				SV_DemoStopPlayback();
 				return;
 			case demo_endFrame:
-				Com_Printf("DEBUGGBOS4 - ENDFRAME\n");
+				Com_Printf("DEBUGGBOS4\n");
 				// Overwrite anything the game may have changed
 				for (i = 0; i < sv.num_entities; i++)
 				{
@@ -248,21 +245,16 @@ exit_loop:
 				// Set the server time
 				sv.time = MSG_ReadLong(&msg);
 				return;
-			case demo_configString:
-				Com_Printf("DEBUGGBOS5\n");
-				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
-				SV_SetConfigstring(CS_PLAYERS + num, MSG_ReadString(&msg)); //, qtrue
-				break;
 			case demo_serverCommand:
-				Com_Printf("DEBUGGBOS6\n");
+				Com_Printf("DEBUGGBOS5\n");
 				Cmd_SaveCmdContext();
 				Cmd_TokenizeString(MSG_ReadString(&msg));
 				SV_SendServerCommand(NULL, "%s \"^3[DEMO] ^7%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
-				Com_Printf("DEBUGGBOS6-2: %s --- %s\n",Cmd_Argv(0), Cmd_ArgsFrom(1));
+				Com_Printf("DEBUGGBOS5-2: %s --- %s\n",Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_gameCommand:
-				Com_Printf("DEBUGGBOS7\n");
+				Com_Printf("DEBUGGBOS6\n");
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
 				Cmd_TokenizeString(MSG_ReadString(&msg));
@@ -270,14 +262,14 @@ exit_loop:
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_playerState:
-				Com_Printf("DEBUGGBOS8\n");
+				Com_Printf("DEBUGGBOS7\n");
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				player = SV_GameClientNum(num);
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
 			case demo_entityState:
-				Com_Printf("DEBUGGBOS9\n");
+				Com_Printf("DEBUGGBOS8\n");
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -289,7 +281,7 @@ exit_loop:
 				}
 				break;
 			case demo_entityShared:
-				Com_Printf("DEBUGGBOS10\n");
+				Com_Printf("DEBUGGBOS9\n");
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -338,8 +330,7 @@ void SV_DemoStartRecord(void)
 	// Write map name
 	MSG_WriteString(&msg, sv_mapname->string);
 	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)
-	//MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
-	SV_DemoWriteMessage(&msg);
+	MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
 
 	// Write client configstrings
 	for (i = 0; i < sv_maxclients->integer; i++)
@@ -393,10 +384,6 @@ void SV_DemoStartPlayback(void)
 	int r, i, clients;
 	char *s;
 
-	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
-		keepSaved--;
-	}
-
 	MSG_Init(&msg, buf, sizeof(buf));
 
 	// Get the demo header
@@ -423,23 +410,8 @@ void SV_DemoStartPlayback(void)
 	}
 
 	// Check slots, time and map
-	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS);
-	if (sv_democlients->integer < clients) {
-		Com_Printf("Not enough demo slots, automatically increasing sv_democlients to %d and sv_maxclients to %d.\n", clients, sv_maxclients->integer + clients);
-
-		// save the old values of sv_maxclients, sv_democlients and bot_minplayers to later restore them
-		savedMaxClients = sv_maxclients->integer;
-		savedDemoClients = sv_democlients->integer;
-		savedBotMinPlayers = Cvar_VariableIntegerValue("bot_minplayers");
-		keepSaved = 1;
-
-		// automatically adjusting sv_democlients, sv_maxclients and bot_minplayers
-		Cvar_SetValueLatched("sv_democlients", clients);
-		Cvar_SetValueLatched("sv_maxclients", sv_maxclients->integer + clients);
-		Cvar_SetValue("bot_minplayers", 0); // if we have bots that autoconnect, this will make up for a very weird demo!
-		//SV_DemoStopPlayback();
-		//return;
-	}
+	savedMaxClients = sv_maxclients->integer;
+	savedDemoClients = sv_democlients->integer;
 
 	r = MSG_ReadLong(&msg);
 	if (r < 400)
@@ -455,20 +427,34 @@ void SV_DemoStartPlayback(void)
 		SV_DemoStopPlayback();
 		return;
 	}
-
+	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+	if (sv_democlients->integer < clients)
+	{
+		int count = 0;
+		// get the number of clients in use
+		for ( i = 0 ; i < sv_maxclients->integer ; i++ ) {
+			if ( svs.clients[i].state >= CS_CONNECTED ) {
+				count++;
+			}
+		}
+		if ( clients + count > MAX_CLIENTS ) {
+			Com_Printf("Not enough slots to fit all connected clients and all demo clients." \
+			           "%d clients needs to disconnect.\n", clients + count - MAX_CLIENTS);
+			SV_DemoStopPlayback();
+			return;
+		}
+		Cvar_SetValue("sv_democlients", clients);
+		Cvar_SetValue("sv_maxclients", clients + count);
+	}
 	if (!com_sv_running->integer || strcmp(sv_mapname->string, s) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time ||
 	    sv_maxclients->modified || sv_democlients->modified)
 	{
-		/// Change to the right map and start the demo with a hardcoded 10 seconds delay
-		// FIXME: this should not be a hardcoded value, there should be a way to ensure that the map fully restarted before continuing. And this can NOT be based on warmup, because if warmup is set to 0 (disabled), then you'll have no delay, and a delay is necessary! If the demo starts replaying before the map is restarted, it will simply do nothing.
-		// delay command is here used as a workaround for waiting until the map is fully restarted
-
+		// Change to the right map and start the demo with a g_warmup second delay
+		Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd()));
+		//Cbuf_AddText(va("devmap %s\ndelay %d\n%s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // DEBUGTEST
+		//Cbuf_AddText(va("devmap %s\nwait 200\n%s\n", s, Cmd_Cmd()));
 		SV_DemoStopPlayback();
-		Cbuf_AddText(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd()));
-		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
-		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
-
 		return;
 	}
 
@@ -502,8 +488,6 @@ Close the demo file and restart the map
 */
 void SV_DemoStopPlayback(void)
 {
-	int olddemostate;
-	olddemostate = sv.demoState;
 	// Clear client configstrings
 	int i;
 	for (i = 0; i < sv_democlients->integer; i++)
@@ -515,31 +499,16 @@ void SV_DemoStopPlayback(void)
 	Com_Printf("Stopped playing demo %s.\n", sv.demoName);
 
 	// restore maxclients and democlients
-	// Note: must do it before the map_restart! so that it takes effect (because it's latched)
-	if (keepSaved == 0 && savedMaxClients >= 0 && savedDemoClients >= 0) {
-		Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
-		Cvar_SetValueLatched("sv_democlients", savedDemoClients);
-		if (savedBotMinPlayers >= 0) {
-			Cvar_SetValue("bot_minplayers", savedBotMinPlayers);
-		}
-	}
+	Cvar_SetValue("sv_maxclients", savedMaxClients);
+	Cvar_SetValue("sv_democlients", savedDemoClients);
 
 	// demo hasn't actually started yet
-	if (olddemostate == DS_NONE && keepSaved == 0) {
-#ifdef DEDICATED
-		//Cbuf_AddText("map_restart 0\n");
-#else
-		Com_Error (ERR_DROP,"An error happened while replaying the demo, please check the log for more info\n");
-		Cbuf_AddText("killserver\n");
-#endif
-	} else if (olddemostate == DS_PLAYBACK) {
+
+	if (sv.demoState != DS_PLAYBACK)
 #ifdef DEDICATED
 		Cbuf_AddText("map_restart 0\n");
 #else
-		Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
+		Cbuf_AddText("killserver\n");
 #endif
-	}
-
-	return;
 
 }

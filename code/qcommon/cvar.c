@@ -89,7 +89,7 @@ static cvar_t *Cvar_FindVar( const char *var_name ) {
 	long hash;
 
 	hash = generateHashValue(var_name);
-	
+
 	for (var=hashTable[hash] ; var ; var=var->hashNext) {
 		if (!Q_stricmp(var_name, var->name)) {
 			return var;
@@ -106,7 +106,7 @@ Cvar_VariableValue
 */
 float Cvar_VariableValue( const char *var_name ) {
 	cvar_t	*var;
-	
+
 	var = Cvar_FindVar (var_name);
 	if (!var)
 		return 0;
@@ -121,7 +121,7 @@ Cvar_VariableIntegerValue
 */
 int Cvar_VariableIntegerValue( const char *var_name ) {
 	cvar_t	*var;
-	
+
 	var = Cvar_FindVar (var_name);
 	if (!var)
 		return 0;
@@ -136,7 +136,7 @@ Cvar_VariableString
 */
 char *Cvar_VariableString( const char *var_name ) {
 	cvar_t *var;
-	
+
 	var = Cvar_FindVar (var_name);
 	if (!var)
 		return "";
@@ -151,7 +151,7 @@ Cvar_VariableStringBuffer
 */
 void Cvar_VariableStringBuffer( const char *var_name, char *buffer, int bufsize ) {
 	cvar_t *var;
-	
+
 	var = Cvar_FindVar (var_name);
 	if (!var) {
 		*buffer = 0;
@@ -169,7 +169,7 @@ Cvar_Flags
 int Cvar_Flags(const char *var_name)
 {
 	cvar_t *var;
-	
+
 	if(! (var = Cvar_FindVar(var_name)) )
 		return CVAR_NONEXISTENT;
 	else
@@ -184,7 +184,7 @@ Cvar_CommandCompletion
 void Cvar_CommandCompletion(void (*callback)(const char *s))
 {
 	cvar_t		*cvar;
-	
+
 	for(cvar = cvar_vars; cvar; cvar = cvar->next)
 	{
 		if(cvar->name)
@@ -326,7 +326,7 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 #endif
 
 	var = Cvar_FindVar (var_name);
-	
+
 	if(var)
 	{
 		var_value = Cvar_Validate(var, var_value, qfalse);
@@ -346,11 +346,11 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 
 				if(var->latchedString)
 					Z_Free(var->latchedString);
-				
+
 				var->latchedString = CopyString(var_value);
 			}
 		}
-		
+
 		// Make sure the game code cannot mark engine-added variables as gamecode vars
 		if(var->flags & CVAR_VM_CREATED)
 		{
@@ -362,7 +362,7 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 			if(flags & CVAR_VM_CREATED)
 				flags &= ~CVAR_VM_CREATED;
 		}
-		
+
 		var->flags |= flags;
 
 		// only allow one non-empty reset string without a warning
@@ -384,7 +384,7 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 			Z_Free( s );
 		}
 
-		// ZOID--needs to be set so that cvars the game sets as 
+		// ZOID--needs to be set so that cvars the game sets as
 		// SERVERINFO get sent to clients
 		cvar_modifiedFlags |= flags;
 
@@ -409,12 +409,12 @@ cvar_t *Cvar_Get( const char *var_name, const char *var_value, int flags ) {
 
 		return NULL;
 	}
-	
+
 	var = &cvar_indexes[index];
-	
+
 	if(index >= cvar_numIndexes)
 		cvar_numIndexes = index + 1;
-		
+
 	var->name = CopyString (var_name);
 	var->string = CopyString (var_value);
 	var->modified = qtrue;
@@ -591,9 +591,9 @@ cvar_t *Cvar_Set2( const char *var_name, const char *value, qboolean force ) {
 
 	var->modified = qtrue;
 	var->modificationCount++;
-	
+
 	Z_Free (var->string);	// free the old value string
-	
+
 	var->string = CopyString(value);
 	var->value = atof (var->string);
 	var->integer = atoi (var->string);
@@ -635,6 +635,21 @@ void Cvar_SetValue( const char *var_name, float value) {
 	Cvar_Set (var_name, val);
 }
 
+/*
+============
+Cvar_SetValueLatched
+============
+*/
+void Cvar_SetValueLatched( const char *var_name, float value) {
+	char	val[32];
+
+	if ( value == (int)value ) {
+		Com_sprintf (val, sizeof(val), "%i",(int)value);
+	} else {
+		Com_sprintf (val, sizeof(val), "%f",value);
+	}
+	Cvar_SetLatched (var_name, val);
+}
 
 /*
 ============
@@ -671,7 +686,7 @@ void Cvar_SetCheatState(void)
 	{
 		if(var->flags & CVAR_CHEAT)
 		{
-			// the CVAR_LATCHED|CVAR_CHEAT vars might escape the reset here 
+			// the CVAR_LATCHED|CVAR_CHEAT vars might escape the reset here
 			// because of a different var->latchedString
 			if (var->latchedString)
 			{
@@ -716,7 +731,7 @@ qboolean Cvar_Command( void ) {
 ============
 Cvar_Print_f
 
-Prints the contents of a cvar 
+Prints the contents of a cvar
 (preferred over Cvar_Command where cvar names and commands conflict)
 ============
 */
@@ -724,7 +739,7 @@ void Cvar_Print_f(void)
 {
 	char *name;
 	cvar_t *cv;
-	
+
 	if(Cmd_Argc() != 2)
 	{
 		Com_Printf ("usage: print <variable>\n");
@@ -734,7 +749,7 @@ void Cvar_Print_f(void)
 	name = Cmd_Argv(1);
 
 	cv = Cvar_FindVar(name);
-	
+
 	if(cv)
 		Cvar_Print(cv);
 	else
@@ -759,8 +774,8 @@ void Cvar_Toggle_f( void ) {
 	}
 
 	if(c == 2) {
-		Cvar_Set2(Cmd_Argv(1), va("%d", 
-			!Cvar_VariableValue(Cmd_Argv(1))), 
+		Cvar_Set2(Cmd_Argv(1), va("%d",
+			!Cvar_VariableValue(Cmd_Argv(1))),
 			qfalse);
 		return;
 	}
@@ -1000,7 +1015,7 @@ cvar_t *Cvar_Unset(cvar_t *cv)
 		cv->hashNext->hashPrev = cv->hashPrev;
 
 	Com_Memset(cv, '\0', sizeof(*cv));
-	
+
 	return next;
 }
 
@@ -1015,18 +1030,18 @@ Unsets a userdefined cvar
 void Cvar_Unset_f(void)
 {
 	cvar_t *cv;
-	
+
 	if(Cmd_Argc() != 2)
 	{
 		Com_Printf("Usage: %s <varname>\n", Cmd_Argv(0));
 		return;
 	}
-	
+
 	cv = Cvar_FindVar(Cmd_Argv(1));
 
 	if(!cv)
 		return;
-	
+
 	if(cv->flags & CVAR_USER_CREATED)
 		Cvar_Unset(cv);
 	else
@@ -1059,13 +1074,13 @@ void Cvar_Restart(qboolean unsetVM)
 			curvar = Cvar_Unset(curvar);
 			continue;
 		}
-		
+
 		if(!(curvar->flags & (CVAR_ROM | CVAR_INIT | CVAR_NORESTART)))
 		{
 			// Just reset the rest to their default values.
 			Cvar_Set2(curvar->name, curvar->resetString, qfalse);
 		}
-		
+
 		curvar = curvar->next;
 	}
 }
@@ -1209,11 +1224,11 @@ void	Cvar_Update( vmCvar_t *vmCvar ) {
 		return;		// variable might have been cleared by a cvar_restart
 	}
 	vmCvar->modificationCount = cv->modificationCount;
-	if ( strlen(cv->string)+1 > MAX_CVAR_VALUE_STRING ) 
+	if ( strlen(cv->string)+1 > MAX_CVAR_VALUE_STRING )
 	  Com_Error( ERR_DROP, "Cvar_Update: src %s length %u exceeds MAX_CVAR_VALUE_STRING",
-		     cv->string, 
+		     cv->string,
 		     (unsigned int) strlen(cv->string));
-	Q_strncpyz( vmCvar->string, cv->string,  MAX_CVAR_VALUE_STRING ); 
+	Q_strncpyz( vmCvar->string, cv->string,  MAX_CVAR_VALUE_STRING );
 
 	vmCvar->value = cv->value;
 	vmCvar->integer = cv->integer;

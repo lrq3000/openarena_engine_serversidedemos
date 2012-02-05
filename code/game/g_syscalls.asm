@@ -46,7 +46,6 @@ equ trap_SnapVector			-43
 equ trap_TraceCapsule		-44
 equ trap_EntityContactCapsule	-45
 equ trap_FS_Seek -46
-equ trap_DemoCommand                -49
 
 equ	memset					-101
 equ	memcpy					-102
@@ -223,3 +222,4 @@ equ trap_BotLibLoadSource				-579
 equ trap_BotLibFreeSource				-580
 equ trap_BotLibReadToken				-581
 equ trap_BotLibSourceFileAndLine		-582
+ 
