@@ -329,6 +329,9 @@ void SV_DemoStartRecord(void)
 	msg_t msg;
 	int i;
 
+	// Set democlients to 0 since it's only used for replaying demo
+	Cvar_SetValueLatched("sv_democlients", 0);
+
 	MSG_Init(&msg, buf, sizeof(buf));
 
 	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)

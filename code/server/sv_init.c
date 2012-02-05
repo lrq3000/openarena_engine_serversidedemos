@@ -321,10 +321,11 @@ void SV_ChangeMaxClients( void ) {
         Cvar_Get( "sv_democlients", "0", 0 );
 
         // make sure we have enough room for all clients
+	// FIXME: is it really necessary?
 	if ( sv_democlients->integer + count > MAX_CLIENTS )
 		Cvar_SetValue( "sv_democlients", MAX_CLIENTS - count );
         if ( sv_maxclients->integer < sv_democlients->integer + count ) {
-                Cvar_SetValue( "sv_maxclients", sv_democlients->integer + count );
+                Cvar_SetValueLatched( "sv_maxclients", sv_democlients->integer + count );
         }
 	sv_maxclients->modified = qfalse;
 	sv_democlients->modified = qfalse;
@@ -678,7 +679,6 @@ void SV_Init (void)
 	sv_privateClients = Cvar_Get ("sv_privateClients", "0", CVAR_SERVERINFO);
 	sv_hostname = Cvar_Get ("sv_hostname", "noname", CVAR_SERVERINFO | CVAR_ARCHIVE );
 	sv_maxclients = Cvar_Get ("sv_maxclients", "8", CVAR_SERVERINFO | CVAR_LATCH);
-	sv_democlients = Cvar_Get ("sv_democlients", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ARCHIVE);
 
 	sv_minRate = Cvar_Get ("sv_minRate", "0", CVAR_ARCHIVE | CVAR_SERVERINFO );
 	sv_maxRate = Cvar_Get ("sv_maxRate", "0", CVAR_ARCHIVE | CVAR_SERVERINFO );
@@ -725,7 +725,9 @@ void SV_Init (void)
 	sv_heartbeat = Cvar_Get("sv_heartbeat", HEARTBEAT_FOR_MASTER, CVAR_INIT);
 	sv_flatline = Cvar_Get("sv_flatline", FLATLINE_FOR_MASTER, CVAR_INIT);
 
+	// serverside demo recording variables
 	sv_demoState = Cvar_Get ("sv_demoState", "0", CVAR_ROM );
+	sv_democlients = Cvar_Get ("sv_democlients", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ARCHIVE );
 	sv_autoDemo = Cvar_Get ("sv_autoDemo", "0", CVAR_ARCHIVE );
 
 	// initialize bot cvars so they are listed and can be set before loading the botlib
