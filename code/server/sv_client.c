@@ -1498,7 +1498,13 @@ void SV_ExecuteClientCommand( client_t *cl, const char *s, qboolean clientOK ) {
 
 	if (clientOK) {
 		// pass unknown strings to the game
-		if (!u->name && sv.state == SS_GAME && (cl->state == CS_ACTIVE || cl->state == CS_PRIMED)) {
+		if (!u->name && sv.state == SS_GAME && (cl->state == CS_ACTIVE || cl->state == CS_PRIMED || cl->demoClient )) {
+			if ( sv.demoState == DS_RECORDING )
+			{
+				if( strcmp(Cmd_Argv(0), "tell") && strcmp(Cmd_Argv(0), "say_team") && strcmp(Cmd_Argv(0), "userinfo") ) { // Privacy check: if the command is not tell nor say_team nor userinfo, we can record it in the demo
+					SV_DemoWriteClientCommand( cl, s );
+				}
+			}
 			if(strcmp(Cmd_Argv(0), "say") && strcmp(Cmd_Argv(0), "say_team") )
 				Cmd_Args_Sanitize(); //remove \n, \r and ; from string. We don't do that for say-commands because it makes people mad (understandebly)
 			VM_Call( gvm, GAME_CLIENT_COMMAND, cl - svs.clients );

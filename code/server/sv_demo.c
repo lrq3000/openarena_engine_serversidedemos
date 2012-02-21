@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 typedef enum {
 	demo_endFrame,
 	demo_configString,
+	demo_clientCommand,
 	demo_serverCommand,
 	demo_gameCommand,
 	demo_entityState,
@@ -63,6 +64,24 @@ static void SV_DemoWriteMessage(msg_t *msg)
 	FS_Write(&len, 4, sv.demoFile);
 	FS_Write(msg->data, msg->cursize, sv.demoFile);
 	MSG_Clear(msg);
+}
+
+/*
+====================
+SV_DemoWriteClientCommand
+
+Write a client command to the demo file
+====================
+*/
+void SV_DemoWriteClientCommand( client_t *client, const char *str )
+{
+	msg_t msg;
+
+	MSG_Init(&msg, buf, sizeof(buf));
+	MSG_WriteByte(&msg, demo_clientCommand);
+	MSG_WriteBits(&msg, client - svs.clients, CLIENTNUM_BITS);
+	MSG_WriteString(&msg, str);
+	SV_DemoWriteMessage(&msg);
 }
 
 /*
@@ -186,7 +205,9 @@ void SV_DemoReadFrame(void)
 	msg_t msg;
 	int cmd, r, num, i;
 	playerState_t *player;
+	client_t *client;
 	sharedEntity_t *entity;
+	char	*tmpmsg;
 
 	MSG_Init(&msg, buf, sizeof(buf));
 
@@ -195,7 +216,6 @@ void SV_DemoReadFrame(void)
 exit_loop:
 		// Get a message
 		r = FS_Read(&msg.cursize, 4, sv.demoFile);
-		Com_Printf("DEBUGGBOA: %d\n", r);
 		if (r != 4)
 		{
 			SV_DemoStopPlayback();
@@ -205,8 +225,6 @@ exit_loop:
 		if (msg.cursize > msg.maxsize)
 			Com_Error(ERR_DROP, "SV_DemoReadFrame: demo message too long");
 		r = FS_Read(msg.data, msg.cursize, sv.demoFile);
-		Com_Printf("DEBUGGBOB: %d\n", r);
-		Com_Printf("DEBUGGBOB2: %d\n", msg.cursize);
 		if (r != msg.cursize)
 		{
 			Com_Printf("Demo file was truncated.\n");
@@ -217,25 +235,19 @@ exit_loop:
 		// Parse the message
 		while (1)
 		{
-			Com_Printf("DEBUGGBOPREMSG\n");
 			cmd = MSG_ReadByte(&msg);
-			Com_Printf("DEBUGGBOPOSTMSG\n");
 			switch (cmd)
 			{
 			default:
-				Com_Printf("DEBUGGBOS1\n");
 				Com_Error(ERR_DROP, "SV_DemoReadFrame: Illegible demo message\n");
 				return;
 			case demo_EOF:
-				Com_Printf("DEBUGGBOS2 - EOF\n");
 				MSG_Clear(&msg);
 				goto exit_loop;
 			case demo_endDemo:
-				Com_Printf("DEBUGGBOS3 - ENDDEMO\n");
 				SV_DemoStopPlayback();
 				return;
 			case demo_endFrame:
-				Com_Printf("DEBUGGBOS4 - ENDFRAME\n");
 				// Overwrite anything the game may have changed
 				for (i = 0; i < sv.num_entities; i++)
 				{
@@ -249,35 +261,53 @@ exit_loop:
 				sv.time = MSG_ReadLong(&msg);
 				return;
 			case demo_configString:
-				Com_Printf("DEBUGGBOS5\n");
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
-				SV_SetConfigstring(CS_PLAYERS + num, MSG_ReadString(&msg)); //, qtrue
+				tmpmsg = MSG_ReadString(&msg);
+				Com_Printf("DebugGBOconfigString: %s\n", tmpmsg);
+				SV_SetConfigstring(CS_PLAYERS + num, tmpmsg); //, qtrue
+				//SV_ClientEnterWorld(&svs.clients[num], NULL);
+				//VM_Call( gvm, GAME_CLIENT_BEGIN, num );
+				//VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, num );
+				//SV_UpdateConfigstrings( num );
+				VM_Call( gvm, GAME_CLIENT_BEGIN, num );
+				//SV_SendClientMessages();
+				break;
+			case demo_clientCommand:
+				Cmd_SaveCmdContext();
+				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+				client = SV_GameClientNum(num);
+				tmpmsg = MSG_ReadString(&msg);
+				//Cmd_TokenizeString(tmpmsg);
+				Com_Printf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
+				SV_ExecuteClientCommand(&svs.clients[num], tmpmsg, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
+				Cmd_RestoreCmdContext();
 				break;
 			case demo_serverCommand:
-				Com_Printf("DEBUGGBOS6\n");
 				Cmd_SaveCmdContext();
-				Cmd_TokenizeString(MSG_ReadString(&msg));
-				SV_SendServerCommand(NULL, "%s \"^3[DEMO] ^7%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
-				Com_Printf("DEBUGGBOS6-2: %s --- %s\n",Cmd_Argv(0), Cmd_ArgsFrom(1));
+				tmpmsg = MSG_ReadString(&msg);
+				Cmd_TokenizeString(tmpmsg);
+				Com_Printf("DebugGBOserverCommand: %s\n", tmpmsg);
+				SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_gameCommand:
-				Com_Printf("DEBUGGBOS7\n");
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
-				Cmd_TokenizeString(MSG_ReadString(&msg));
-				VM_Call(gvm, GAME_DEMO_COMMAND, num);
+				tmpmsg = MSG_ReadString(&msg);
+				Com_Printf("DebugGBOgameCommand: %s\n", tmpmsg);
+				Cmd_TokenizeString(tmpmsg);
+				//VM_Call(gvm, GAME_DEMO_COMMAND, num);
+				SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
+				Com_Printf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_playerState:
-				Com_Printf("DEBUGGBOS8\n");
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				player = SV_GameClientNum(num);
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
 			case demo_entityState:
-				Com_Printf("DEBUGGBOS9\n");
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -289,7 +319,6 @@ exit_loop:
 				}
 				break;
 			case demo_entityShared:
-				Com_Printf("DEBUGGBOS10\n");
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -311,9 +340,7 @@ exit_loop:
 				}
 				break;
 			}
-			Com_Printf("DEBUGGBOENDSWITCH\n");
 		}
-		Com_Printf("DEBUGGBOENDWHILE\n");
 	}
 }
 
@@ -475,25 +502,25 @@ void SV_DemoStartPlayback(void)
 		return;
 	}
 
-	Com_Printf("DEBUGGBO1\n");
 
 	// Initialize our stuff
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
-	Com_Printf("DEBUGGBO2\n");
 	Com_Memset(sv.demoPlayerStates, 0, sizeof(sv.demoPlayerStates));
-	Com_Printf("DEBUGGBO3\n");
 	Cvar_SetValue("sv_democlients", clients);
-	Com_Printf("DEBUGGBO4\n");
-	for (i = 0; i < sv_democlients->integer; i++)
+
+	for (i = 0; i < sv_democlients->integer; i++) {
+		svs.clients[i].demoClient = qtrue;
+		//svs.clients[i].state = CS_ACTIVE;
+		//VM_Call( gvm, GAME_CLIENT_CONNECT, i );
 		SV_SetConfigstring(CS_PLAYERS + i, NULL); //qtrue
+		//SV_ClientEnterWorld(&svs.clients[i], NULL);
+		//VM_Call( gvm, GAME_CLIENT_BEGIN, i );
+	}
+
 	SV_DemoReadFrame();
-	Com_Printf("DEBUGGBO5\n");
 	Com_Printf("Playing demo %s.\n", sv.demoName);
-	Com_Printf("DEBUGGBO6\n");
 	sv.demoState = DS_PLAYBACK;
-	Com_Printf("DEBUGGBO7\n");
 	Cvar_SetValue("sv_demoState", DS_PLAYBACK);
-	Com_Printf("DEBUGGBO8\n");
 }
 
 /*

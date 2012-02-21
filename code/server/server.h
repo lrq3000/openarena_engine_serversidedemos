@@ -198,6 +198,8 @@ typedef struct client_s {
 
 	int				oldServerTime;
 	qboolean			csUpdated[MAX_CONFIGSTRINGS+1];
+
+	qboolean            demoClient; // is this a demoClient?
 } client_t;
 
 //=============================================================================
@@ -383,9 +385,10 @@ void SV_DemoStartPlayback(void);
 void SV_DemoStopPlayback(void);
 void SV_DemoReadFrame(void);
 void SV_DemoWriteFrame(void);
+void SV_DemoWriteClientCommand( client_t *client, const char *str );
 void SV_DemoWriteServerCommand(const char *str);
 void SV_DemoWriteGameCommand(int cmd, const char *str);
-//void SV_DemoWriteConfigString(int client);
+void SV_DemoWriteConfigString(int client);
 
 //
 // sv_game.c

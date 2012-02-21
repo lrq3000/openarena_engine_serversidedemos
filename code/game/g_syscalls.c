@@ -50,7 +50,7 @@ void	trap_Error( const char *fmt ) {
 }
 
 int		trap_Milliseconds( void ) {
-	return syscall( G_MILLISECONDS ); 
+	return syscall( G_MILLISECONDS );
 }
 int		trap_Argc( void ) {
 	return syscall( G_ARGC );
@@ -787,4 +787,9 @@ int trap_PC_ReadToken( int handle, pc_token_t *pc_token ) {
 
 int trap_PC_SourceFileAndLine( int handle, char *filename, int *line ) {
 	return syscall( BOTLIB_PC_SOURCE_FILE_AND_LINE, handle, filename, line );
+}
+
+void trap_DemoCommand( demoCommand_t cmd, const char *string ) {
+	syscall( G_DEMO_COMMAND, cmd, string );
+	return;
 }
