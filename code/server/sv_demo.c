@@ -280,6 +280,8 @@ exit_loop:
 				//Cmd_TokenizeString(tmpmsg);
 				Com_Printf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
 				SV_ExecuteClientCommand(&svs.clients[num], tmpmsg, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
+				player = SV_GameClientNum( i );
+				Com_Printf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_serverCommand:
@@ -287,7 +289,8 @@ exit_loop:
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
 				Com_Printf("DebugGBOserverCommand: %s\n", tmpmsg);
-				SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
+				SV_SendServerCommand(NULL, "%s", tmpmsg);
+				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_gameCommand:
@@ -297,7 +300,8 @@ exit_loop:
 				Com_Printf("DebugGBOgameCommand: %s\n", tmpmsg);
 				Cmd_TokenizeString(tmpmsg);
 				//VM_Call(gvm, GAME_DEMO_COMMAND, num);
-				SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
+				SV_GameSendServerCommand( -1, tmpmsg );
+				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
 				Com_Printf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;

@@ -83,6 +83,11 @@ Sends a command string to a client
 ===============
 */
 void SV_GameSendServerCommand( int clientNum, const char *text ) {
+	if ( sv.demoState == DS_RECORDING )
+	{
+		SV_DemoWriteGameCommand( clientNum, text );
+	}
+
 	if ( clientNum == -1 ) {
 		SV_SendServerCommand( NULL, "%s", text );
 	} else {
@@ -353,6 +358,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		SV_GameDropClient( args[1], VMA(2) );
 		return 0;
 	case G_SEND_SERVER_COMMAND:
+		/*
 		if ( sv.demoState == DS_RECORDING )
 		{
 			if ( args[1] == -1 )
@@ -360,6 +366,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 			else
 				SV_DemoWriteGameCommand( args[1], VMA(2) );
 		}
+		*/
 		SV_GameSendServerCommand( args[1], VMA(2) );
 		return 0;
 	case G_LINKENTITY:

@@ -1131,7 +1131,9 @@ static void SV_Status_f( void ) {
 		ps = SV_GameClientNum( i );
 		Com_Printf ("%5i ", ps->persistant[PERS_SCORE]);
 
-		if (cl->state == CS_CONNECTED)
+		if (cl->demoClient)
+			Com_Printf ("DEMO ");
+		else if (cl->state == CS_CONNECTED)
 			Com_Printf ("CNCT ");
 		else if (cl->state == CS_ZOMBIE)
 			Com_Printf ("ZMBI ");
