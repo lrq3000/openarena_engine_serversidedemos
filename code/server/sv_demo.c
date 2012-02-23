@@ -35,6 +35,7 @@ typedef enum {
 	demo_entityState,
 	demo_entityShared,
 	demo_playerState,
+	demo_separator, // used to separate different kind of suite of demo messages (eg: clientconfigstrings, then configstrings, etc..) - can be used in a do loop
 	demo_endDemo,
 	demo_EOF
 } demo_ops_e;
@@ -46,6 +47,7 @@ static byte buf[0x400000];
 static int savedMaxClients = -1;
 static int savedDemoClients = -1;
 static int savedBotMinPlayers = -1;
+static int savedFPS = -1;
 static int keepSaved = 0; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched) or if we can restore them
 
 /*
@@ -134,7 +136,7 @@ void SV_DemoWriteConfigString( int index, const char *str )
 
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_configString);
-	//MSG_WriteBits(&msg, index, MAX_CONFIGSTRINGS); // doesn't work - too long
+	//MSG_WriteBits(&msg, index, MAX_CONFIGSTRINGS); // doesn't work - too long - try to replace by a WriteLong instead of WriteString? Or WriteData (with length! and it uses WriteByte)
 	sprintf(cindex, "%i", index); // convert index to a string since we don't have any other way to store values that are greater than a byte (and max_configstrings is 1024 currently)
 	MSG_WriteString(&msg, cindex);
 	MSG_WriteString(&msg, str);
@@ -399,20 +401,34 @@ void SV_DemoStartRecord(void)
 	MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
 	// Write current time
 	MSG_WriteLong(&msg, sv.time);
+	// Write sv_fps
+	MSG_WriteLong(&msg, sv_fps->integer);
+	// Write g_gametype
+	MSG_WriteLong(&msg, sv_gametype->integer);
 	// Write map name
 	MSG_WriteString(&msg, sv_mapname->string);
-	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)
-	//MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
+
+	// Write all the above into the demo file
 	SV_DemoWriteMessage(&msg);
 
 	// Write client configstrings
 	for (i = 0; i < sv_maxclients->integer; i++)
 	{
 		//if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
-		if (sv.configstrings[CS_PLAYERS + i])
+		if (&sv.configstrings[CS_PLAYERS + i])
 			SV_DemoWriteClientConfigString(i);
 	}
-	SV_DemoWriteMessage(&msg);
+	//SV_DemoWriteMessage(&msg);
+
+	// Write all configstrings (such as current capture score CS_SCORE1/2, etc...)
+	for (i = 0; i < MAX_CONFIGSTRINGS; i++)
+	{
+		if (&sv.configstrings[i] && i >= 4 && (i < CS_PLAYERS || i > CS_PLAYERS + sv_maxclients->integer)) // client configstrings are already recorded above, we don't want to record them again here - and we don't want to save the first 3 configstrings which are system set
+			SV_DemoWriteConfigString(i, sv.configstrings[i]);
+	}
+	// MSG_WriteByte(&msg2, demo_separator);
+	//SV_DemoWriteMessage(demo_separator);
+	//SV_DemoWriteMessage(&msg2);
 
 	// Write entities and players
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
@@ -455,8 +471,9 @@ sv.demo* have already been set and the demo file opened, start reading gamestate
 void SV_DemoStartPlayback(void)
 {
 	msg_t msg;
-	int r, i, clients;
-	char *s;
+	int r, i, clients, fps, gametype, num;
+	char *map;
+	char *str;
 
 	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
 		keepSaved--;
@@ -506,6 +523,7 @@ void SV_DemoStartPlayback(void)
 		//return;
 	}
 
+	// reading server time (from the demo)
 	r = MSG_ReadLong(&msg);
 	if (r < 400)
 	{
@@ -513,24 +531,41 @@ void SV_DemoStartPlayback(void)
 		SV_DemoStopPlayback();
 		return;
 	}
-	s = MSG_ReadString(&msg);
-	if (!FS_FOpenFileRead(va("maps/%s.bsp", s), NULL, qfalse))
+
+	// reading sv_fps (from the demo)
+	fps = MSG_ReadLong(&msg);
+	if ( sv_fps->integer != fps ) {
+		savedFPS = sv_fps->integer;
+		keepSaved = 1;
+		Cvar_SetValue("sv_fps", fps);
+	}
+
+	// reading g_gametype (from the demo)
+	gametype = MSG_ReadLong(&msg);
+
+	// reading map (from the demo)
+	map = MSG_ReadString(&msg);
+	if (!FS_FOpenFileRead(va("maps/%s.bsp", map), NULL, qfalse))
 	{
-		Com_Printf("Map does not exist: %s.\n", s);
+		Com_Printf("Map does not exist: %s.\n", map);
 		SV_DemoStopPlayback();
 		return;
 	}
 
-	if (!com_sv_running->integer || strcmp(sv_mapname->string, s) ||
+
+	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
+	// TOFIX? why sv_cheats is needed?
+	if ( !com_sv_running->integer || strcmp(sv_mapname->string, map) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time ||
-	    sv_maxclients->modified || sv_democlients->modified)
+	    sv_maxclients->modified || sv_democlients->modified ||
+	    sv_gametype->integer != gametype )
 	{
 		/// Change to the right map and start the demo with a hardcoded 10 seconds delay
 		// FIXME: this should not be a hardcoded value, there should be a way to ensure that the map fully restarted before continuing. And this can NOT be based on warmup, because if warmup is set to 0 (disabled), then you'll have no delay, and a delay is necessary! If the demo starts replaying before the map is restarted, it will simply do nothing.
 		// delay command is here used as a workaround for waiting until the map is fully restarted
 
 		SV_DemoStopPlayback();
-		Cbuf_AddText(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd()));
+		Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
 		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
 		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
 
@@ -543,6 +578,8 @@ void SV_DemoStartPlayback(void)
 	Com_Memset(sv.demoPlayerStates, 0, sizeof(sv.demoPlayerStates));
 	Cvar_SetValue("sv_democlients", clients);
 
+	// Init democlients configstrings to NULL (and set them as democlients)
+	/*
 	for (i = 0; i < sv_democlients->integer; i++) {
 		svs.clients[i].demoClient = qtrue;
 		//svs.clients[i].state = CS_ACTIVE;
@@ -552,6 +589,28 @@ void SV_DemoStartPlayback(void)
 		//VM_Call( gvm, GAME_CLIENT_BEGIN, i );
 	}
 
+	// Fill the real democlient configstrings
+	for (i = 0; i < sv_democlients->integer; i++) {
+		num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+		str = MSG_ReadString(&msg);
+		Com_Printf("DebugGBOINITclientConfigString: %i %s\n", num, str);
+		svs.clients[num].demoClient = qtrue;
+		SV_SetConfigstring(CS_PLAYERS + num, str);
+		VM_Call( gvm, GAME_CLIENT_BEGIN, num );
+	}
+
+	// Fill the general game configstrings (such as capture score CS_SCORES1/2, etc...)
+	for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
+		num = atoi(MSG_ReadString(&msg));
+		str = MSG_ReadString(&msg);
+		if (&sv.configstrings[num]) {
+			Com_Printf("DebugGBOINITconfigString: %i %s\n", num, str);
+			SV_SetConfigstring(num, str);
+		}
+	}
+	*/
+
+	// Start reading the first frame
 	SV_DemoReadFrame();
 	Com_Printf("Playing demo %s.\n", sv.demoName);
 	sv.demoState = DS_PLAYBACK;
@@ -581,12 +640,17 @@ void SV_DemoStopPlayback(void)
 
 	// restore maxclients and democlients
 	// Note: must do it before the map_restart! so that it takes effect (because it's latched)
-	if (keepSaved == 0 && savedMaxClients >= 0 && savedDemoClients >= 0) {
-		Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
-		Cvar_SetValueLatched("sv_democlients", savedDemoClients);
-		if (savedBotMinPlayers >= 0) {
-			Cvar_SetValue("bot_minplayers", savedBotMinPlayers);
+	if (keepSaved == 0) {
+		if (savedMaxClients >= 0 && savedDemoClients >= 0) {
+			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
+			Cvar_SetValueLatched("sv_democlients", savedDemoClients);
 		}
+
+		if (savedBotMinPlayers >= 0)
+			Cvar_SetValue("bot_minplayers", savedBotMinPlayers);
+
+		if (savedFPS > 0)
+			Cvar_SetValue("sv_fps", savedFPS);
 	}
 
 	// demo hasn't actually started yet
