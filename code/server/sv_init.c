@@ -130,8 +130,12 @@ void SV_SetConfigstring (int index, const char *val) {
 	sv.configstrings[index] = CopyString( val );
 
 	// save client strings to demo
-	if ( index >= CS_PLAYERS && index < CS_PLAYERS + sv_maxclients->integer && sv.demoState == DS_RECORDING ) {
-		SV_DemoWriteConfigString( index - CS_PLAYERS );
+	if (sv.demoState == DS_RECORDING) {
+		if ( index >= CS_PLAYERS && index < CS_PLAYERS + sv_maxclients->integer ) { // if this is a player, we save the configstring as a clientconfigstring
+			SV_DemoWriteClientConfigString( index - CS_PLAYERS );
+		} else {
+			SV_DemoWriteConfigString( index, val ); // else we save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
+		}
 	}
 
 	// send it to all the clients if we aren't
@@ -194,6 +198,7 @@ void SV_SetUserinfo( int index, const char *val ) {
 
 	Q_strncpyz( svs.clients[index].userinfo, val, sizeof( svs.clients[ index ].userinfo ) );
 	Q_strncpyz( svs.clients[index].name, Info_ValueForKey( val, "name" ), sizeof(svs.clients[index].name) );
+	Com_Printf("DGBO SV_SetUserInfo: %i %s\n", index, val);
 }
 
 

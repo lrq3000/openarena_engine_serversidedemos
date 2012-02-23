@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 typedef enum {
 	demo_endFrame,
 	demo_configString,
+	demo_clientConfigString,
 	demo_clientCommand,
 	demo_serverCommand,
 	demo_gameCommand,
@@ -123,15 +124,36 @@ void SV_DemoWriteGameCommand(int cmd, const char *str)
 ====================
 SV_DemoWriteConfigString
 
+Write a configstring to the demo file
+====================
+*/
+void SV_DemoWriteConfigString( int index, const char *str )
+{
+	msg_t msg;
+	char *cindex[MAX_CONFIGSTRINGS];
+
+	MSG_Init(&msg, buf, sizeof(buf));
+	MSG_WriteByte(&msg, demo_configString);
+	//MSG_WriteBits(&msg, index, MAX_CONFIGSTRINGS); // doesn't work - too long
+	sprintf(cindex, "%i", index); // convert index to a string since we don't have any other way to store values that are greater than a byte (and max_configstrings is 1024 currently)
+	MSG_WriteString(&msg, cindex);
+	MSG_WriteString(&msg, str);
+	SV_DemoWriteMessage(&msg);
+}
+
+/*
+====================
+SV_DemoWriteClientConfigString
+
 Write a client configstring to the demo file
 ====================
 */
-void SV_DemoWriteConfigString(int client)
+void SV_DemoWriteClientConfigString(int client)
 {
 	msg_t msg;
 
 	MSG_Init(&msg, buf, sizeof(buf));
-	MSG_WriteByte(&msg, demo_configString);
+	MSG_WriteByte(&msg, demo_clientConfigString);
 	MSG_WriteBits(&msg, client, CLIENTNUM_BITS);
 	MSG_WriteString(&msg, sv.configstrings[CS_PLAYERS + client]);
 	SV_DemoWriteMessage(&msg);
@@ -261,9 +283,16 @@ exit_loop:
 				sv.time = MSG_ReadLong(&msg);
 				return;
 			case demo_configString:
+				//num = MSG_ReadBits(&msg, MAX_CONFIGSTRINGS);
+				num = atoi(MSG_ReadString(&msg));
+				tmpmsg = MSG_ReadString(&msg);
+				Com_Printf("DebugGBOconfigString: %i %s\n", num, tmpmsg);
+				SV_SetConfigstring(num, tmpmsg); //, qtrue
+				break;
+			case demo_clientConfigString:
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				tmpmsg = MSG_ReadString(&msg);
-				Com_Printf("DebugGBOconfigString: %s\n", tmpmsg);
+				Com_Printf("DebugGBOclientConfigString: %i %s\n", num, tmpmsg);
 				SV_SetConfigstring(CS_PLAYERS + num, tmpmsg); //, qtrue
 				//SV_ClientEnterWorld(&svs.clients[num], NULL);
 				//VM_Call( gvm, GAME_CLIENT_BEGIN, num );
@@ -297,12 +326,13 @@ exit_loop:
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
-				Com_Printf("DebugGBOgameCommand: %s\n", tmpmsg);
 				Cmd_TokenizeString(tmpmsg);
+				if (strcmp(Cmd_Argv(0), "tinfo")) // too much spamming of tinfo (hud team overlay infos) - don't need those to debug
+					Com_Printf("DebugGBOgameCommand: %s\n", tmpmsg);
 				//VM_Call(gvm, GAME_DEMO_COMMAND, num);
 				SV_GameSendServerCommand( -1, tmpmsg );
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
-				Com_Printf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
+				//Com_Printf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_playerState:
@@ -378,8 +408,9 @@ void SV_DemoStartRecord(void)
 	// Write client configstrings
 	for (i = 0; i < sv_maxclients->integer; i++)
 	{
-		if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
-			SV_DemoWriteConfigString(i);
+		//if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
+		if (sv.configstrings[CS_PLAYERS + i])
+			SV_DemoWriteClientConfigString(i);
 	}
 	SV_DemoWriteMessage(&msg);
 

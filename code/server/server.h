@@ -388,7 +388,8 @@ void SV_DemoWriteFrame(void);
 void SV_DemoWriteClientCommand( client_t *client, const char *str );
 void SV_DemoWriteServerCommand(const char *str);
 void SV_DemoWriteGameCommand(int cmd, const char *str);
-void SV_DemoWriteConfigString(int client);
+void SV_DemoWriteClientConfigString(int client);
+void SV_DemoWriteConfigString( int client, const char *str );
 
 //
 // sv_game.c

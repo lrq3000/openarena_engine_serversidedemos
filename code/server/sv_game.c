@@ -319,6 +319,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		Cvar_Update( VMA(1) );
 		return 0;
 	case G_CVAR_SET:
+		Com_Printf("DGBO G_CVAR_SET: %s = %s\n", (const char *)VMA(1), (const char *)VMA(2));
 		Cvar_Set( (const char *)VMA(1), (const char *)VMA(2) );
 		return 0;
 	case G_CVAR_VARIABLE_INTEGER_VALUE:
@@ -398,12 +399,14 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		return SV_inPVSIgnorePortals( VMA(1), VMA(2) );
 
 	case G_SET_CONFIGSTRING:
+		Com_Printf("DGBO G_SET_CONFIGSTRING: %i %s\n", args[1], (const char *)VMA(2));
 		SV_SetConfigstring( args[1], VMA(2) );
 		return 0;
 	case G_GET_CONFIGSTRING:
 		SV_GetConfigstring( args[1], VMA(2), args[3] );
 		return 0;
 	case G_SET_USERINFO:
+		Com_Printf("DGBO G_SET_USERINFO: %i %s\n", args[1], (const char *)VMA(2));
 		SV_SetUserinfo( args[1], VMA(2) );
 		return 0;
 	case G_GET_USERINFO:
