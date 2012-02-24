@@ -333,6 +333,7 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		Cmd_ArgvBuffer( args[1], VMA(2), args[3] );
 		return 0;
 	case G_SEND_CONSOLE_COMMAND:
+		Com_Printf("DGBO G_SEND_CONSOLE_COMMAND: %s = %s\n", (const char *)args[1], (const char *)VMA(2));
 		Cbuf_ExecuteText( args[1], VMA(2) );
 		return 0;
 
@@ -400,7 +401,10 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 
 	case G_SET_CONFIGSTRING:
 		Com_Printf("DGBO G_SET_CONFIGSTRING: %i %s\n", args[1], (const char *)VMA(2));
-		SV_SetConfigstring( args[1], VMA(2) );
+		// Don't allow the game to overwrite demo configstrings
+		if ( sv.demoState != DS_PLAYBACK ) {
+			SV_SetConfigstring( args[1], VMA(2) );
+		}
 		return 0;
 	case G_GET_CONFIGSTRING:
 		SV_GetConfigstring( args[1], VMA(2), args[3] );
