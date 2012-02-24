@@ -304,13 +304,16 @@ exit_loop:
 				//SV_UpdateConfigstrings( num );
 				//SV_SetUserinfo( drop - svs.clients, "" );
 				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
-					svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
+					// Set some infos about this user:
+					svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
+					strcpy( svs.clients[num].name, Info_ValueForKey( tmpmsg, "n" ) ); // set the name (useful for internal functions such as status_f). We use strcpy to copy a const char* to a char[32] (an array, so we need this function) // TOFIX: extracted normally from userinfo?
+					//svs.clients[num].state or client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
+
 
 					//client = &svs.clients[num];
 					//SV_ClientEnterWorld(client, &client->lastUsercmd);
 					//SV_SendClientGameState( client );
-					//client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
 					VM_Call( gvm, GAME_CLIENT_BEGIN, num );
 				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && !tmpmsg ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);

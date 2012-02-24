@@ -1121,20 +1121,17 @@ static void SV_Status_f( void ) {
 
 	Com_Printf ("map: %s\n", sv_mapname->string );
 
-	Com_Printf("DGBOSCORES\n");
-
 	Com_Printf ("num score ping name            lastmsg address               qport rate\n");
 	Com_Printf ("--- ----- ---- --------------- ------- --------------------- ----- -----\n");
 	for (i=0,cl=svs.clients ; i < sv_maxclients->integer ; i++,cl++)
 	{
-		Com_Printf("DGBOSCORES: %3i state: %i\n", i, cl->state);
 		if (!cl->state && !cl->demoClient)
 			continue;
 		Com_Printf ("%3i ", i);
 		ps = SV_GameClientNum( i );
 		Com_Printf ("%5i ", ps->persistant[PERS_SCORE]);
 
-		if (cl->demoClient)
+		if (cl->demoClient) // if it's a democlient, we show DEMO instead of the ping (which would be 999 anyway - which is not the case in the scoreboard which show the real ping that had the player because commands are replayed!)
 			Com_Printf ("DEMO ");
 		else if (cl->state == CS_CONNECTED)
 			Com_Printf ("CNCT ");
