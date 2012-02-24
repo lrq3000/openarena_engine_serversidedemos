@@ -294,19 +294,38 @@ exit_loop:
 			case demo_clientConfigString:
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				tmpmsg = MSG_ReadString(&msg);
-				Com_Printf("DebugGBOclientConfigString: %i %s\n", num, tmpmsg);
-				SV_SetConfigstring(CS_PLAYERS + num, tmpmsg); //, qtrue
+				Com_Printf("DebugGBOclientConfigString: %i %i %s\n", num, CS_PLAYERS + num, tmpmsg);
+				//SV_SetConfigstring(CS_PLAYERS + num, tmpmsg); //, qtrue
+				//SV_SetUserinfo( num, tmpmsg );
+				//SV_UpdateUserinfo_f(client);
 				//SV_ClientEnterWorld(&svs.clients[num], NULL);
 				//VM_Call( gvm, GAME_CLIENT_BEGIN, num );
 				//VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, num );
 				//SV_UpdateConfigstrings( num );
-				VM_Call( gvm, GAME_CLIENT_BEGIN, num );
+				//SV_SetUserinfo( drop - svs.clients, "" );
+				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
+					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
+
+					//client = &svs.clients[num];
+					//SV_ClientEnterWorld(client, &client->lastUsercmd);
+					//SV_SendClientGameState( client );
+					VM_Call( gvm, GAME_CLIENT_BEGIN, num );
+				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && !tmpmsg ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
+					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
+
+					//client = &svs.clients[num];
+					//SV_DropClient( client, "disconnected" ); or SV_Disconnect_f(client);
+					VM_Call( gvm, GAME_CLIENT_DISCONNECT, num );
+					//SV_SendServerCommand( client, "disconnect \"%s\"", NULL);
+				} else {
+					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
+				}
 				//SV_SendClientMessages();
 				break;
 			case demo_clientCommand:
 				Cmd_SaveCmdContext();
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
-				client = SV_GameClientNum(num);
+				//client = SV_GameClientNum(num);
 				tmpmsg = MSG_ReadString(&msg);
 				//Cmd_TokenizeString(tmpmsg);
 				Com_Printf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
