@@ -304,17 +304,20 @@ exit_loop:
 				//SV_UpdateConfigstrings( num );
 				//SV_SetUserinfo( drop - svs.clients, "" );
 				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
+					svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 
 					//client = &svs.clients[num];
 					//SV_ClientEnterWorld(client, &client->lastUsercmd);
 					//SV_SendClientGameState( client );
+					//client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
 					VM_Call( gvm, GAME_CLIENT_BEGIN, num );
 				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && !tmpmsg ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 
 					//client = &svs.clients[num];
 					//SV_DropClient( client, "disconnected" ); or SV_Disconnect_f(client);
+					//client->state = CS_FREE;
 					VM_Call( gvm, GAME_CLIENT_DISCONNECT, num );
 					//SV_SendServerCommand( client, "disconnect \"%s\"", NULL);
 				} else {
