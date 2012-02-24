@@ -289,7 +289,9 @@ exit_loop:
 				num = atoi(MSG_ReadString(&msg));
 				tmpmsg = MSG_ReadString(&msg);
 				Com_Printf("DebugGBOconfigString: %i %s\n", num, tmpmsg);
-				SV_SetConfigstring(num, tmpmsg); //, qtrue
+				if ( num < CS_PLAYERS + sv_democlients->integer || num >= CS_PLAYERS + sv_maxclients->integer ) { // we make sure to not overwrite real client configstrings (else when the demo starts, normal players will have no name, no model and no status!)
+					SV_SetConfigstring(num, tmpmsg); //, qtrue
+				}
 				break;
 			case demo_clientConfigString:
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
