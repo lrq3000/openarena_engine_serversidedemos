@@ -275,7 +275,7 @@ exit_loop:
 				// Overwrite anything the game may have changed
 				for (i = 0; i < sv.num_entities; i++)
 				{
-					if (i >= sv_democlients->integer && i < MAX_CLIENTS)
+					if (i >= sv_democlients->integer && i < MAX_CLIENTS) // TOFIX? shouldn't MAX_CLIENTS be sv_maxclients->integer?
 						continue;
 					*SV_GentityNum(i) = sv.demoEntities[i];
 				}
