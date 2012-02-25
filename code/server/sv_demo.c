@@ -288,7 +288,7 @@ exit_loop:
 				//num = MSG_ReadBits(&msg, MAX_CONFIGSTRINGS);
 				num = atoi(MSG_ReadString(&msg));
 				tmpmsg = MSG_ReadString(&msg);
-				Com_Printf("DebugGBOconfigString: %i %s\n", num, tmpmsg);
+				Com_DPrintf("DebugGBOconfigString: %i %s\n", num, tmpmsg);
 				if ( num < CS_PLAYERS + sv_democlients->integer || num >= CS_PLAYERS + sv_maxclients->integer ) { // we make sure to not overwrite real client configstrings (else when the demo starts, normal players will have no name, no model and no status!)
 					SV_SetConfigstring(num, tmpmsg); //, qtrue
 				}
@@ -296,7 +296,7 @@ exit_loop:
 			case demo_clientConfigString:
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				tmpmsg = MSG_ReadString(&msg);
-				Com_Printf("DebugGBOclientConfigString: %i %i %s\n", num, CS_PLAYERS + num, tmpmsg);
+				Com_DPrintf("DebugGBOclientConfigString: %i %i %s\n", num, CS_PLAYERS + num, tmpmsg);
 				//SV_SetConfigstring(CS_PLAYERS + num, tmpmsg); //, qtrue
 				//SV_SetUserinfo( num, tmpmsg );
 				//SV_UpdateUserinfo_f(client);
@@ -307,10 +307,20 @@ exit_loop:
 				//SV_SetUserinfo( drop - svs.clients, "" );
 				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
+
 					// Set some infos about this user:
 					svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
 					strcpy( svs.clients[num].name, Info_ValueForKey( tmpmsg, "n" ) ); // set the name (useful for internal functions such as status_f). We use strcpy to copy a const char* to a char[32] (an array, so we need this function) // TOFIX: extracted normally from userinfo?
 					//svs.clients[num].state or client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
+
+					/*
+					// Update userinfo
+					client = &svs.clients[num];
+					Q_strncpyz( client->userinfo, tmpmsg, sizeof(client->userinfo) );
+					SV_UserinfoChanged( client );
+					// call prog code to allow overrides
+					//VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, client - svs.clients );
+					*/
 
 
 					//client = &svs.clients[num];
@@ -336,17 +346,17 @@ exit_loop:
 				//client = SV_GameClientNum(num);
 				tmpmsg = MSG_ReadString(&msg);
 				//Cmd_TokenizeString(tmpmsg);
-				Com_Printf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
+				Com_DPrintf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
 				SV_ExecuteClientCommand(&svs.clients[num], tmpmsg, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
 				player = SV_GameClientNum( i );
-				Com_Printf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
+				Com_DPrintf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_serverCommand:
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
-				Com_Printf("DebugGBOserverCommand: %s\n", tmpmsg);
+				Com_DPrintf("DebugGBOserverCommand: %s\n", tmpmsg);
 				SV_SendServerCommand(NULL, "%s", tmpmsg);
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
@@ -357,11 +367,11 @@ exit_loop:
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
 				if (strcmp(Cmd_Argv(0), "tinfo")) // too much spamming of tinfo (hud team overlay infos) - don't need those to debug
-					Com_Printf("DebugGBOgameCommand: %s\n", tmpmsg);
+					Com_DPrintf("DebugGBOgameCommand: %s\n", tmpmsg);
 				//VM_Call(gvm, GAME_DEMO_COMMAND, num);
 				SV_GameSendServerCommand( -1, tmpmsg );
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
-				//Com_Printf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
+				//Com_DPrintf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_playerState:
@@ -620,7 +630,7 @@ void SV_DemoStartPlayback(void)
 	for (i = 0; i < sv_democlients->integer; i++) {
 		num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 		str = MSG_ReadString(&msg);
-		Com_Printf("DebugGBOINITclientConfigString: %i %s\n", num, str);
+		Com_DPrintf("DebugGBOINITclientConfigString: %i %s\n", num, str);
 		svs.clients[num].demoClient = qtrue;
 		SV_SetConfigstring(CS_PLAYERS + num, str);
 		VM_Call( gvm, GAME_CLIENT_BEGIN, num );
@@ -631,7 +641,7 @@ void SV_DemoStartPlayback(void)
 		num = atoi(MSG_ReadString(&msg));
 		str = MSG_ReadString(&msg);
 		if (&sv.configstrings[num]) {
-			Com_Printf("DebugGBOINITconfigString: %i %s\n", num, str);
+			Com_DPrintf("DebugGBOINITconfigString: %i %s\n", num, str);
 			SV_SetConfigstring(num, str);
 		}
 	}
