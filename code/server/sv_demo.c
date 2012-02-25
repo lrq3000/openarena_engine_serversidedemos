@@ -275,7 +275,7 @@ exit_loop:
 				// Overwrite anything the game may have changed
 				for (i = 0; i < sv.num_entities; i++)
 				{
-					if (i >= sv_democlients->integer && i < MAX_CLIENTS) // TOFIX? shouldn't MAX_CLIENTS be sv_maxclients->integer?
+					if (i >= sv_democlients->integer && i < MAX_CLIENTS) // FIXME? shouldn't MAX_CLIENTS be sv_maxclients->integer?
 						continue;
 					*SV_GentityNum(i) = sv.demoEntities[i];
 				}
@@ -310,7 +310,7 @@ exit_loop:
 
 					// Set some infos about this user:
 					svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
-					strcpy( svs.clients[num].name, Info_ValueForKey( tmpmsg, "n" ) ); // set the name (useful for internal functions such as status_f). We use strcpy to copy a const char* to a char[32] (an array, so we need this function) // TOFIX: extracted normally from userinfo?
+					strcpy( svs.clients[num].name, Info_ValueForKey( tmpmsg, "n" ) ); // set the name (useful for internal functions such as status_f). We use strcpy to copy a const char* to a char[32] (an array, so we need this function) // FIXME: extracted normally from userinfo?
 					//svs.clients[num].state or client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
 
 					/*
@@ -508,7 +508,7 @@ sv.demo* have already been set and the demo file opened, start reading gamestate
 void SV_DemoStartPlayback(void)
 {
 	msg_t msg;
-	int r, i, clients, fps, gametype, num;
+	int r, i, clients, fps, gametype, num; // FIXME: useless variables
 	char *map;
 	char *str;
 
@@ -591,7 +591,7 @@ void SV_DemoStartPlayback(void)
 
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
-	// TOFIX? why sv_cheats is needed?
+	// FIXME? why sv_cheats is needed?
 	if ( !com_sv_running->integer || strcmp(sv_mapname->string, map) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time ||
 	    sv_maxclients->modified || sv_democlients->modified ||

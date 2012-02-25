@@ -83,7 +83,7 @@ Sends a command string to a client
 ===============
 */
 void SV_GameSendServerCommand( int clientNum, const char *text ) {
-	if ( sv.demoState == DS_RECORDING )
+	if ( sv.demoState == DS_RECORDING && ( strncmp(text, "chat", 4) && strncmp(text, "tchat", 5) ) ) // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that we can modify democlients name (not done now but maybe in the future?) )
 	{
 		SV_DemoWriteGameCommand( clientNum, text );
 	}

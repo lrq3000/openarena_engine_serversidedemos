@@ -113,7 +113,7 @@ void SV_SetConfigstring (int index, const char *val) {
 
 	/*
 	// Don't allow the game to overwrite demo player configstrings
-	// TOFIX: maybe it prevents when replaying to really set the democlient configstrings since it's this function that is called?
+	// FIXME: maybe it prevents when replaying to really set the democlient configstrings since it's this function that is called?
 	if ( sv.demoState == DS_PLAYBACK && index >= CS_PLAYERS && index < CS_PLAYERS + sv_democlients->integer ) { // if (!force && sv.demoState == DS_PLAYBACK && ...
 		return;
 	}
