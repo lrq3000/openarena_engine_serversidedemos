@@ -24,20 +24,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "server.h"
 
-// Headers for demo messages
+/***********************************************
+ * VARIABLES
+ *
+ ***********************************************/
+
+// Headers/markers for demo messages (events)
 typedef enum {
-	demo_endFrame,
-	demo_configString,
-	demo_clientConfigString,
-	demo_clientCommand,
-	demo_serverCommand,
-	demo_gameCommand,
-	demo_entityState,
-	demo_entityShared,
-	demo_playerState,
-	demo_separator, // used to separate different kind of suite of demo messages (eg: clientconfigstrings, then configstrings, etc..) - can be used in a do loop
-	demo_endDemo,
-	demo_EOF
+	demo_endFrame, // player and gentity state marker (recorded each end of frame, hence the name) - at the same time marks the end of the demo frame
+	demo_configString, // config string setting event
+	demo_clientConfigString, // client config string setting event
+	demo_clientCommand, // client command event
+	demo_serverCommand, // server command event
+	demo_gameCommand, // game command event
+	demo_clientUserinfo, // client userinfo event (client_t management)
+	demo_entityState, // gentity game state event
+	demo_entityShared, // more gentity game state event
+	demo_playerState, // players game state event (player_t management)
+	demo_endDemo, // end of demo event (close the demo)
+	demo_EOF // end of file/flux event (end of event, separator, notify the demo parser to iterate to the next event of the _same_ frame)
 } demo_ops_e;
 
 // Big fat buffer to store all our stuff
@@ -50,11 +55,116 @@ static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int keepSaved = 0; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched) or if we can restore them
 
+
+
+/***********************************************
+ * CHECKING AND FILTERING FUNCTIONS
+ *
+ * Functions used to either trim unnecessary or privacy concerned data, or to just check if the data should be written in the demo, relayed to a more specialized function or just dropped.
+ ***********************************************/
+
+/*
+====================
+SV_CheckClientCommand
+
+Check that the clientCommand is OK (if not we either continue with a more specialized function, or drop it altogether if there's a privacy concern)
+====================
+*/
+qboolean SV_CheckClientCommand( client_t *client, const char *cmd )
+{
+	char *userinfo;
+
+	if ( !strncmp(cmd, "userinfo", 8) ) { // If that's a userinfo command, we directly handle that with a specialized function
+		strncpy(userinfo, cmd+9, strlen(cmd)-9); // trimming out the "userinfo " substring (because we only need the userinfo string)
+		SV_DemoWriteClientUserinfo(client, (const char*)userinfo); // passing relay to the specialized function for this job
+
+		return qfalse; // we return false if the check wasn't right (meaning that this function does not need to process anything)
+	} else if( !strncmp(cmd, "tell", 4) || !strncmp(cmd, "say_team", 8) ) { // Privacy check: if the command is tell or say_team, we just drop it
+		return qfalse;
+	}
+	return qtrue; // else, the check is OK and we continue to process with the original function
+}
+
+/*
+====================
+SV_CheckServerCommand
+
+Check that the serverCommand is OK (or if we drop it because already handled somewhere else)
+====================
+*/
+qboolean SV_CheckServerCommand( const char *cmd )
+{
+	if ( !strncmp(cmd, "print", 5) || !strncmp(cmd, "cp", 2) ) { // If that's a print/cp command, it's already handled by gameCommand (here it's a redundancy). FIXME? possibly some print/cp are not handled by gameCommand? From my tests it was ok, but if someday a few prints are missing, try to delete this check...
+		return qfalse; // we return false if the check wasn't right
+	}
+	return qtrue; // else, the check is OK and we continue to process with the original function
+}
+
+/*
+====================
+SV_CheckGameCommand
+
+Check that the gameCommand is OK (or if we drop it for privacy concerns and/or because it's handled somewhere else already)
+====================
+*/
+qboolean SV_CheckGameCommand( const char *cmd )
+{
+	if ( !strncmp(cmd, "chat", 4) || !strncmp(cmd, "tchat", 5) ) { // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that it itself fetch the name from client->name
+		return qfalse; // we return false if the check wasn't right
+	}
+	return qtrue; // else, the check is OK and we continue to process with the original function
+}
+
+/*
+====================
+SV_CheckConfigString
+
+Check that the configstring is OK (or if we relay to ClientConfigString)
+====================
+*/
+qboolean SV_CheckConfigString( int cs_index, const char *cs_string )
+{
+	if ( cs_index >= CS_PLAYERS && cs_index < CS_PLAYERS + sv_maxclients->integer ) { // if this is a player, we save the configstring as a clientconfigstring
+		SV_DemoWriteClientConfigString( cs_index - CS_PLAYERS, cs_string );
+		return qfalse; // we return false if the check wasn't right
+	} else {
+		SV_DemoWriteConfigString( cs_index, cs_string ); // else we save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
+	}
+	return qtrue; // else, the check is OK and we continue to process with the original function
+}
+
+/*
+====================
+SV_DemoFilterClientUserinfo
+
+Filters privacy keys from a client userinfo to later write in a demo file
+====================
+*/
+void SV_DemoFilterClientUserinfo( const char *userinfo )
+{
+	char *buf;
+
+	buf = (char *)userinfo;
+	Info_RemoveKey(buf, "cl_guid");
+	Info_RemoveKey(buf, "ip");
+	Info_SetValueForKey(buf, "cl_voip", "0");
+
+	userinfo = (const char*)buf;
+}
+
+
+
+/***********************************************
+ * DEMO WRITING FUNCTIONS
+ *
+ * Functions used to construct and write demo events
+ ***********************************************/
+
 /*
 ====================
 SV_DemoWriteMessage
 
-Write a message to the demo file
+Write a message/event to the demo file
 ====================
 */
 static void SV_DemoWriteMessage(msg_t *msg)
@@ -62,7 +172,7 @@ static void SV_DemoWriteMessage(msg_t *msg)
 	int len;
 
 	// Write the entire message to the file, prefixed by the length
-	MSG_WriteByte(msg, demo_EOF);
+	MSG_WriteByte(msg, demo_EOF); // append EOF (end-of-file or rather end-of-flux) to the message so that it will tell the demo parser when the demo will be read that the message ends here, and that it can proceed to the next message
 	len = LittleLong(msg->cursize);
 	FS_Write(&len, 4, sv.demoFile);
 	FS_Write(msg->data, msg->cursize, sv.demoFile);
@@ -76,14 +186,18 @@ SV_DemoWriteClientCommand
 Write a client command to the demo file
 ====================
 */
-void SV_DemoWriteClientCommand( client_t *client, const char *str )
+void SV_DemoWriteClientCommand( client_t *client, const char *cmd )
 {
 	msg_t msg;
+
+	if ( !SV_CheckClientCommand(client, cmd) ) { // check that this function really needs to store the command (or if another more specialized function should do it instead, eg: userinfo)
+		return;
+	}
 
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_clientCommand);
 	MSG_WriteBits(&msg, client - svs.clients, CLIENTNUM_BITS);
-	MSG_WriteString(&msg, str);
+	MSG_WriteString(&msg, cmd);
 	SV_DemoWriteMessage(&msg);
 }
 
@@ -94,13 +208,17 @@ SV_DemoWriteServerCommand
 Write a server command to the demo file
 ====================
 */
-void SV_DemoWriteServerCommand(const char *str)
+void SV_DemoWriteServerCommand( const char *cmd )
 {
 	msg_t msg;
 
+	if ( !SV_CheckServerCommand( cmd ) ) { // check that this function really needs to store the command
+		return;
+	}
+
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_serverCommand);
-	MSG_WriteString(&msg, str);
+	MSG_WriteString(&msg, cmd);
 	SV_DemoWriteMessage(&msg);
 }
 
@@ -111,14 +229,18 @@ SV_DemoWriteGameCommand
 Write a game command to the demo file
 ====================
 */
-void SV_DemoWriteGameCommand(int cmd, const char *str)
+void SV_DemoWriteGameCommand( int clientNum, const char *cmd )
 {
 	msg_t msg;
 
+	if ( !SV_CheckGameCommand( cmd ) ) { // check that this function really needs to store the command
+		return;
+	}
+
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_gameCommand);
-	MSG_WriteByte(&msg, cmd);
-	MSG_WriteString(&msg, str);
+	MSG_WriteByte(&msg, clientNum);
+	MSG_WriteString(&msg, cmd);
 	SV_DemoWriteMessage(&msg);
 }
 
@@ -127,19 +249,25 @@ void SV_DemoWriteGameCommand(int cmd, const char *str)
 SV_DemoWriteConfigString
 
 Write a configstring to the demo file
+cs_index = index of the configstring (see bg_public.h)
+cs_string = content of the configstring to set
 ====================
 */
-void SV_DemoWriteConfigString( int index, const char *str )
+void SV_DemoWriteConfigString( int cs_index, const char *cs_string )
 {
 	msg_t msg;
 	char *cindex[MAX_CONFIGSTRINGS];
 
+	if ( !SV_CheckConfigString( cs_index, cs_string ) ) { // check that this function really needs to store the configstring (or if it's a client configstring we relay to the specialized function)
+		return;
+	} // else we save it below as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
+
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_configString);
 	//MSG_WriteBits(&msg, index, MAX_CONFIGSTRINGS); // doesn't work - too long - try to replace by a WriteLong instead of WriteString? Or WriteData (with length! and it uses WriteByte)
-	sprintf(cindex, "%i", index); // convert index to a string since we don't have any other way to store values that are greater than a byte (and max_configstrings is 1024 currently)
+	sprintf(cindex, "%i", cs_index); // convert index to a string since we don't have any other way to store values that are greater than a byte (and max_configstrings is 1024 currently)
 	MSG_WriteString(&msg, cindex);
-	MSG_WriteString(&msg, str);
+	MSG_WriteString(&msg, cs_string);
 	SV_DemoWriteMessage(&msg);
 }
 
@@ -148,24 +276,49 @@ void SV_DemoWriteConfigString( int index, const char *str )
 SV_DemoWriteClientConfigString
 
 Write a client configstring to the demo file
+Note: this is a bit redundant with SV_DemoWriteUserinfo, because clientCommand userinfo sets the new userinfo for a democlient, and clients configstrings are always derived from userinfo string. But this function is left for security purpose (so we make sure the configstring is set right).
 ====================
 */
-void SV_DemoWriteClientConfigString(int client)
+void SV_DemoWriteClientConfigString( int clientNum, const char *cs_string )
 {
 	msg_t msg;
 
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_clientConfigString);
-	MSG_WriteBits(&msg, client, CLIENTNUM_BITS);
-	MSG_WriteString(&msg, sv.configstrings[CS_PLAYERS + client]);
+	MSG_WriteBits(&msg, clientNum, CLIENTNUM_BITS);
+	//MSG_WriteString(&msg, sv.configstrings[CS_PLAYERS + client]); // replaced by the line below, should allow for a more flexible use
+	MSG_WriteString(&msg, cs_string);
 	SV_DemoWriteMessage(&msg);
+}
+
+/*
+====================
+SV_DemoWriteClientUserinfo
+
+Write a client userinfo to the demo file (client_t fields can almost all be filled from the userinfo string)
+Note: in practice, clients userinfo should be loaded before their configstrings (because configstrings derive from userinfo in a real game)
+====================
+*/
+void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
+{
+	msg_t msg;
+
+	SV_DemoFilterClientUserinfo( userinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
+
+	MSG_Init(&msg, buf, sizeof(buf));
+	MSG_WriteByte(&msg, demo_clientUserinfo); // write the event marker
+	MSG_WriteBits(&msg, client - svs.clients, CLIENTNUM_BITS); // write the client number (client_t - svs.clients = client num int)
+	MSG_WriteString(&msg, userinfo); // write the (filtered) userinfo string
+	SV_DemoWriteMessage(&msg); // commit this demo event in the demo file
 }
 
 /*
 ====================
 SV_DemoWriteFrame
 
-Record all the entities and players at the end the frame
+Record all the entities (gentities fields) and players (player_t fields) at the end of every frame (this is the only write function to be called in every frame for sure)
+Will be called once per server's frame
+Called in the main server's loop SV_Frame() in sv_main.c
 ====================
 */
 void SV_DemoWriteFrame(void)
@@ -217,11 +370,21 @@ void SV_DemoWriteFrame(void)
 	SV_DemoWriteMessage(&msg);
 }
 
+
+
+/***********************************************
+ * DEMO READING FUNCTIONS
+ *
+ * Functions to read demo events
+ ***********************************************/
+
 /*
 ====================
 SV_DemoReadFrame
 
 Play a frame from the demo file
+This function will read one frame per call, and will process every events contained (switch to the next event when meeting the demo_EOF marker) until it meets the end of the frame (demo_endDemo marker)
+Called in the main server's loop SV_Frame() in sv_main.c
 ====================
 */
 void SV_DemoReadFrame(void)
@@ -265,13 +428,13 @@ exit_loop:
 			default:
 				Com_Error(ERR_DROP, "SV_DemoReadFrame: Illegible demo message\n");
 				return;
-			case demo_EOF:
+			case demo_EOF: // end of a demo event (the loop will continue to real the next event)
 				MSG_Clear(&msg);
 				goto exit_loop;
-			case demo_endDemo:
+			case demo_endDemo: // end of the demo file
 				SV_DemoStopPlayback();
 				return;
-			case demo_endFrame:
+			case demo_endFrame: // end of the frame - players and entities game status management: we move every players, update their game status (ammos, armor, placement, etc...) and update entities (items respawn, flags items, etc.), then release the demo frame reading here to the next server (and demo) frame
 				// Overwrite anything the game may have changed
 				for (i = 0; i < sv.num_entities; i++)
 				{
@@ -284,7 +447,7 @@ exit_loop:
 				// Set the server time
 				sv.time = MSG_ReadLong(&msg);
 				return;
-			case demo_configString:
+			case demo_configString: // general configstrings setting (such as capture scores CS_SCORES1/2, etc.) - except clients configstrings
 				//num = MSG_ReadBits(&msg, MAX_CONFIGSTRINGS);
 				num = atoi(MSG_ReadString(&msg));
 				tmpmsg = MSG_ReadString(&msg);
@@ -293,7 +456,7 @@ exit_loop:
 					SV_SetConfigstring(num, tmpmsg); //, qtrue
 				}
 				break;
-			case demo_clientConfigString:
+			case demo_clientConfigString: // client configstrings setting and clients status management
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				tmpmsg = MSG_ReadString(&msg);
 				Com_DPrintf("DebugGBOclientConfigString: %i %i %s\n", num, CS_PLAYERS + num, tmpmsg);
@@ -326,21 +489,32 @@ exit_loop:
 					//client = &svs.clients[num];
 					//SV_ClientEnterWorld(client, &client->lastUsercmd);
 					//SV_SendClientGameState( client );
-					VM_Call( gvm, GAME_CLIENT_BEGIN, num );
+					VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
 				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && !tmpmsg ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 
-					//client = &svs.clients[num];
-					//SV_DropClient( client, "disconnected" ); or SV_Disconnect_f(client);
+					client = &svs.clients[num];
+					SV_DropClient( client, "disconnected" ); // or SV_Disconnect_f(client);
 					//client->state = CS_FREE;
-					VM_Call( gvm, GAME_CLIENT_DISCONNECT, num );
+					//VM_Call( gvm, GAME_CLIENT_DISCONNECT, num ); // Works too! But using SV_DropClient should be cleaner (same as using SV_Disconnect_f)
 					//SV_SendServerCommand( client, "disconnect \"%s\"", NULL);
 				} else {
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 				}
 				//SV_SendClientMessages();
 				break;
-			case demo_clientCommand:
+			case demo_clientUserinfo: // client userinfo setting and client_t fields management
+				Cmd_SaveCmdContext();
+				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+				client = &svs.clients[num];
+				tmpmsg = MSG_ReadString(&msg);
+				sprintf(tmpmsg, "userinfo %s", tmpmsg); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
+				Cmd_TokenizeString(tmpmsg);
+				SV_UpdateUserinfo_f(client);
+				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, &svs.clients[num].userinfo);
+				Cmd_RestoreCmdContext();
+				break;
+			case demo_clientCommand: // client command management (generally automatic, such as tinfo for HUD team overlay status, team selection, etc.) - except userinfo command that is managed by another event
 				Cmd_SaveCmdContext();
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				//client = SV_GameClientNum(num);
@@ -352,35 +526,35 @@ exit_loop:
 				Com_DPrintf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
 				Cmd_RestoreCmdContext();
 				break;
-			case demo_serverCommand:
+			case demo_serverCommand: // server command management - except print/cp (already handled by serverCommand),
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
-				Com_DPrintf("DebugGBOserverCommand: %s\n", tmpmsg);
+				Com_DPrintf("DebugGBOserverCommand: %s \n", tmpmsg);
 				SV_SendServerCommand(NULL, "%s", tmpmsg);
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
-			case demo_gameCommand:
+			case demo_gameCommand: // game command management - such as prints/centerprint (cp) scores command - except chat/tchat (handled by clientCommand)
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
 				if (strcmp(Cmd_Argv(0), "tinfo")) // too much spamming of tinfo (hud team overlay infos) - don't need those to debug
-					Com_DPrintf("DebugGBOgameCommand: %s\n", tmpmsg);
+					Com_DPrintf("DebugGBOgameCommand: %s \n", tmpmsg);
 				//VM_Call(gvm, GAME_DEMO_COMMAND, num);
 				SV_GameSendServerCommand( -1, tmpmsg );
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
 				//Com_DPrintf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
-			case demo_playerState:
+			case demo_playerState: // manage playerState_t (some more players game status management, see demo_endFrame)
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				player = SV_GameClientNum(num);
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
-			case demo_entityState:
+			case demo_entityState: // manage gentity (some more gentities game status management, see demo_endFrame)
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -391,7 +565,7 @@ exit_loop:
 					sv.demoEntities[num].s = entity->s;
 				}
 				break;
-			case demo_entityShared:
+			case demo_entityShared: // more gentity management (GBO: I guess this is what manages items availability for example)
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -417,10 +591,19 @@ exit_loop:
 	}
 }
 
+
+
+/***********************************************
+ * DEMO MANAGEMENT FUNCTIONS
+ *
+ * Functions to start/stop the recording/playback of a demo file
+ ***********************************************/
+
 /*
 ====================
 SV_DemoStartRecord
 
+Start the recording of a demo by saving some headers data (such as the number of clients, mapname, gametype, etc..)
 sv.demo* have already been set and the demo file opened, start writing gamestate info
 ====================
 */
@@ -448,12 +631,12 @@ void SV_DemoStartRecord(void)
 	// Write all the above into the demo file
 	SV_DemoWriteMessage(&msg);
 
-	// Write client configstrings
+	// Write initial client configstrings
 	for (i = 0; i < sv_maxclients->integer; i++)
 	{
 		//if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
 		if (&sv.configstrings[CS_PLAYERS + i])
-			SV_DemoWriteClientConfigString(i);
+			SV_DemoWriteClientConfigString(i, &sv.configstrings[CS_PLAYERS + i]);
 	}
 	//SV_DemoWriteMessage(&msg);
 
@@ -480,7 +663,8 @@ void SV_DemoStartRecord(void)
 ====================
 SV_DemoStopRecord
 
-Write end of file and close the demo file
+Stop the recording of a demo
+Write end of demo (demo_endDemo marker) and close the demo file
 ====================
 */
 void SV_DemoStopRecord(void)
@@ -502,7 +686,10 @@ void SV_DemoStopRecord(void)
 ====================
 SV_DemoStartPlayback
 
+Start the playback of a demo
 sv.demo* have already been set and the demo file opened, start reading gamestate info
+This function will also check that everything is alright (such as gametype, map, sv_fps, sv_democlients, sv_maxclients, etc.), if not it will try to fix it automatically
+Note for developers: this is basically a mirror of SV_DemoStartRecord() but the other way around (there it writes, here it reads) - but only for the part about the headers, for the rest (eg: userinfo, configstrings, playerstates) it's directly managed by ReadFrame.
 ====================
 */
 void SV_DemoStartPlayback(void)
@@ -658,7 +845,7 @@ void SV_DemoStartPlayback(void)
 ====================
 SV_DemoStopPlayback
 
-Close the demo file and restart the map
+Close the demo file and restart the map (can be used both when recording or when playing or at shutdown of the game)
 ====================
 */
 void SV_DemoStopPlayback(void)

@@ -385,11 +385,17 @@ void SV_DemoStartPlayback(void);
 void SV_DemoStopPlayback(void);
 void SV_DemoReadFrame(void);
 void SV_DemoWriteFrame(void);
-void SV_DemoWriteClientCommand( client_t *client, const char *str );
-void SV_DemoWriteServerCommand(const char *str);
-void SV_DemoWriteGameCommand(int cmd, const char *str);
-void SV_DemoWriteClientConfigString(int client);
-void SV_DemoWriteConfigString( int client, const char *str );
+void SV_DemoWriteClientCommand( client_t *client, const char *cmd );
+void SV_DemoWriteServerCommand( const char *cmd );
+void SV_DemoWriteGameCommand( int clientNum, const char *cmd );
+void SV_DemoWriteConfigString( int cs_index, const char *cs_string );
+void SV_DemoWriteClientConfigString( int clientNum, const char *cs_string );
+void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo );
+qboolean SV_CheckClientCommand( client_t *client, const char *cmd );
+qboolean SV_CheckServerCommand( const char *cmd );
+qboolean SV_CheckGameCommand( const char *cmd );
+qboolean SV_CheckConfigString( int cs_index, const char *cs_string );
+void SV_DemoFilterClientUserinfo( const char *userinfo );
 
 //
 // sv_game.c

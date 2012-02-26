@@ -213,8 +213,9 @@ void QDECL SV_SendServerCommand(client_t *cl, const char *fmt, ...) {
 	}
 
 	// save broadcasts to demo
-	if ( sv.demoState == DS_RECORDING )
+	if ( sv.demoState == DS_RECORDING ) {
 		SV_DemoWriteServerCommand( (char *)message );
+	}
 
 	// send the data to all relevent clients
 	for (j = 0, client = svs.clients; j < sv_maxclients->integer ; j++, client++) {

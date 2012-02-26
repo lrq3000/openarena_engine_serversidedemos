@@ -613,7 +613,7 @@ void SV_DropClient( client_t *drop, const char *reason ) {
 			break;
 		}
 	}
-	if ( i == sv_maxclients->integer ) {
+	if ( i >= sv_maxclients->integer - sv_democlients->integer ) { // we check real players slots: if real players slots are filled, we send an heartbeat to update
 		SV_Heartbeat_f();
 	}
 }
@@ -1412,11 +1412,19 @@ SV_UpdateUserinfo_f
 ==================
 */
 static void SV_UpdateUserinfo_f( client_t *cl ) {
+
+	// Save userinfo changes
+	if ( sv.demoState == DS_RECORDING ) {
+		SV_DemoWriteClientUserinfo( cl, Cmd_Argv(1) );
+	}
+
 	Q_strncpyz( cl->userinfo, Cmd_Argv(1), sizeof(cl->userinfo) );
 
 	SV_UserinfoChanged( cl );
 	// call prog code to allow overrides
 	VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, cl - svs.clients );
+
+	Com_DPrintf("DGBO SV_UpdateUserinfo_f: %i %s\n", cl - svs.clients, Cmd_ArgsFrom(0));
 }
 
 
@@ -1499,11 +1507,8 @@ void SV_ExecuteClientCommand( client_t *cl, const char *s, qboolean clientOK ) {
 	if (clientOK) {
 		// pass unknown strings to the game
 		if (!u->name && sv.state == SS_GAME && (cl->state == CS_ACTIVE || cl->state == CS_PRIMED || cl->demoClient )) {
-			if ( sv.demoState == DS_RECORDING )
-			{
-				if( strcmp(Cmd_Argv(0), "tell") && strcmp(Cmd_Argv(0), "say_team") && strcmp(Cmd_Argv(0), "userinfo") ) { // Privacy check: if the command is not tell nor say_team nor userinfo, we can record it in the demo
-					SV_DemoWriteClientCommand( cl, s );
-				}
+			if ( sv.demoState == DS_RECORDING ) {
+				SV_DemoWriteClientCommand( cl, s );
 			}
 			if(strcmp(Cmd_Argv(0), "say") && strcmp(Cmd_Argv(0), "say_team") )
 				Cmd_Args_Sanitize(); //remove \n, \r and ; from string. We don't do that for say-commands because it makes people mad (understandebly)

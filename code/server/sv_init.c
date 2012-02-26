@@ -132,13 +132,9 @@ void SV_SetConfigstring (int index, const char *val) {
 	Z_Free( sv.configstrings[index] );
 	sv.configstrings[index] = CopyString( val );
 
-	// save client strings to demo
+	// save config strings to demo
 	if (sv.demoState == DS_RECORDING) {
-		if ( index >= CS_PLAYERS && index < CS_PLAYERS + sv_maxclients->integer ) { // if this is a player, we save the configstring as a clientconfigstring
-			SV_DemoWriteClientConfigString( index - CS_PLAYERS );
-		} else {
-			SV_DemoWriteConfigString( index, val ); // else we save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
-		}
+		SV_DemoWriteConfigString( index, val );
 	}
 
 	// send it to all the clients if we aren't
