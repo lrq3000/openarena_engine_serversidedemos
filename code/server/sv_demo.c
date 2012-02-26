@@ -127,10 +127,8 @@ qboolean SV_CheckConfigString( int cs_index, const char *cs_string )
 	if ( cs_index >= CS_PLAYERS && cs_index < CS_PLAYERS + sv_maxclients->integer ) { // if this is a player, we save the configstring as a clientconfigstring
 		SV_DemoWriteClientConfigString( cs_index - CS_PLAYERS, cs_string );
 		return qfalse; // we return false if the check wasn't right
-	} else {
-		SV_DemoWriteConfigString( cs_index, cs_string ); // else we save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
 	}
-	return qtrue; // else, the check is OK and we continue to process with the original function
+	return qtrue; // else, the check is OK and we continue to process to save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
 }
 
 /*
