@@ -301,7 +301,9 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 {
 	msg_t msg;
 
-	SV_DemoFilterClientUserinfo( userinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
+	if (strlen(userinfo) > 0) { // do the filtering only if the string is not empty
+		SV_DemoFilterClientUserinfo( userinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
+	}
 
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_clientUserinfo); // write the event marker

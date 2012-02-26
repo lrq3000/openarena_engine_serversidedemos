@@ -1413,7 +1413,7 @@ SV_UpdateUserinfo_f
 */
 void SV_UpdateUserinfo_f( client_t *cl ) {
 
-	// Save userinfo changes
+	// Save userinfo changes to demo (also in SV_SetUserinfo() in sv_init.c)
 	if ( sv.demoState == DS_RECORDING ) {
 		SV_DemoWriteClientUserinfo( cl, Cmd_Argv(1) );
 	}
