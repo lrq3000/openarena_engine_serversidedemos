@@ -1411,7 +1411,7 @@ void SV_UserinfoChanged( client_t *cl ) {
 SV_UpdateUserinfo_f
 ==================
 */
-static void SV_UpdateUserinfo_f( client_t *cl ) {
+void SV_UpdateUserinfo_f( client_t *cl ) {
 
 	// Save userinfo changes
 	if ( sv.demoState == DS_RECORDING ) {

@@ -351,6 +351,8 @@ void SV_UserinfoChanged( client_t *cl );
 void SV_ClientEnterWorld( client_t *client, usercmd_t *cmd );
 void SV_DropClient( client_t *drop, const char *reason );
 
+void SV_UpdateUserinfo_f( client_t *cl );
+
 void SV_ExecuteClientCommand( client_t *cl, const char *s, qboolean clientOK );
 void SV_ClientThink (client_t *cl, usercmd_t *cmd);
 
@@ -409,6 +411,7 @@ void		SV_InitGameProgs ( void );
 void		SV_ShutdownGameProgs ( void );
 void		SV_RestartGameProgs( void );
 qboolean	SV_inPVS (const vec3_t p1, const vec3_t p2);
+void SV_GameSendServerCommand( int clientNum, const char *text );
 
 //
 // sv_bot.c

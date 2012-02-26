@@ -266,7 +266,7 @@ void SV_DemoWriteConfigString( int cs_index, const char *cs_string )
 	MSG_WriteByte(&msg, demo_configString);
 	//MSG_WriteBits(&msg, index, MAX_CONFIGSTRINGS); // doesn't work - too long - try to replace by a WriteLong instead of WriteString? Or WriteData (with length! and it uses WriteByte)
 	sprintf(cindex, "%i", cs_index); // convert index to a string since we don't have any other way to store values that are greater than a byte (and max_configstrings is 1024 currently)
-	MSG_WriteString(&msg, cindex);
+	MSG_WriteString(&msg, (const char*)cindex);
 	MSG_WriteString(&msg, cs_string);
 	SV_DemoWriteMessage(&msg);
 }
@@ -511,7 +511,7 @@ exit_loop:
 				sprintf(tmpmsg, "userinfo %s", tmpmsg); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
 				Cmd_TokenizeString(tmpmsg);
 				SV_UpdateUserinfo_f(client);
-				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, &svs.clients[num].userinfo);
+				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, svs.clients[num].userinfo);
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_clientCommand: // client command management (generally automatic, such as tinfo for HUD team overlay status, team selection, etc.) - except userinfo command that is managed by another event
@@ -522,7 +522,7 @@ exit_loop:
 				//Cmd_TokenizeString(tmpmsg);
 				Com_DPrintf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
 				SV_ExecuteClientCommand(&svs.clients[num], tmpmsg, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
-				player = SV_GameClientNum( i );
+				player = SV_GameClientNum( num );
 				Com_DPrintf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
 				Cmd_RestoreCmdContext();
 				break;
@@ -636,7 +636,7 @@ void SV_DemoStartRecord(void)
 	{
 		//if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
 		if (&sv.configstrings[CS_PLAYERS + i])
-			SV_DemoWriteClientConfigString(i, &sv.configstrings[CS_PLAYERS + i]);
+			SV_DemoWriteClientConfigString(i, (const char *)sv.configstrings[CS_PLAYERS + i]);
 	}
 	//SV_DemoWriteMessage(&msg);
 
@@ -695,9 +695,10 @@ Note for developers: this is basically a mirror of SV_DemoStartRecord() but the 
 void SV_DemoStartPlayback(void)
 {
 	msg_t msg;
-	int r, i, clients, fps, gametype, num; // FIXME: useless variables
+	int r, clients, fps, gametype;
+	//int i, num; // FIXME: useless variables
 	char *map;
-	char *str;
+	//char *str;
 
 	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
 		keepSaved--;
