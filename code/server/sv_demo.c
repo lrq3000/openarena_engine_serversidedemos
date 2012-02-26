@@ -631,24 +631,30 @@ void SV_DemoStartRecord(void)
 	// Write all the above into the demo file
 	SV_DemoWriteMessage(&msg);
 
-	// Write initial client configstrings
-	for (i = 0; i < sv_maxclients->integer; i++)
-	{
-		//if (svs.clients[i].state == CS_ACTIVE && sv.configstrings[CS_PLAYERS + i])
-		if (&sv.configstrings[CS_PLAYERS + i])
-			SV_DemoWriteClientConfigString(i, (const char *)sv.configstrings[CS_PLAYERS + i]);
-	}
-	//SV_DemoWriteMessage(&msg);
-
 	// Write all configstrings (such as current capture score CS_SCORE1/2, etc...)
 	for (i = 0; i < MAX_CONFIGSTRINGS; i++)
 	{
-		if (&sv.configstrings[i] && i >= 4 && (i < CS_PLAYERS || i > CS_PLAYERS + sv_maxclients->integer)) // client configstrings are already recorded above, we don't want to record them again here - and we don't want to save the first 3 configstrings which are system set
+		if (&sv.configstrings[i] && i >= 4 && (i < CS_PLAYERS || i > CS_PLAYERS + sv_maxclients->integer)) // client configstrings are already recorded below, we don't want to record them again here - and we don't want to save the first 3 configstrings which are system set
 			SV_DemoWriteConfigString(i, sv.configstrings[i]);
 	}
-	// MSG_WriteByte(&msg2, demo_separator);
-	//SV_DemoWriteMessage(demo_separator);
-	//SV_DemoWriteMessage(&msg2);
+
+	// Write initial clients userinfo and configstrings
+	for (i = 0; i < sv_maxclients->integer; i++)
+	{
+		client_t *client = &svs.clients[i];
+
+		if (client->state >= CS_CONNECTED) {
+
+			// store client's userinfo (should be before clients configstrings since clients configstrings are derived from userinfo)
+			if (client->userinfo) { // if player is connected and the configstring exists, we store it
+				SV_DemoWriteClientUserinfo(client, (const char *)client->userinfo);
+			}
+			// store client's configstring
+			if (&sv.configstrings[CS_PLAYERS + i]) { // if player is connected and the configstring exists, we store it
+				SV_DemoWriteClientConfigString(i, (const char *)sv.configstrings[CS_PLAYERS + i]);
+			}
+		}
+	}
 
 	// Write entities and players
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
