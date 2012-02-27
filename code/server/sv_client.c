@@ -557,7 +557,7 @@ void SV_DropClient( client_t *drop, const char *reason ) {
 		return;		// already dropped
 	}
 
-	if ( !isBot ) {
+	if ( !isBot && !drop->demoClient ) {
 		// see if we already have a challenge for this ip
 		challenge = &svs.challenges[0];
 
@@ -599,7 +599,7 @@ void SV_DropClient( client_t *drop, const char *reason ) {
 	if ( isBot ) {
 		// bots shouldn't go zombie, as there's no real net connection.
 		drop->state = CS_FREE;
-	} else {
+	} else { // democlients and real clients should go through CS_ZOMBIE before CS_FREE
 		Com_DPrintf( "Going to CS_ZOMBIE for %s\n", drop->name );
 		drop->state = CS_ZOMBIE;		// become free in a few seconds
 	}
@@ -609,11 +609,11 @@ void SV_DropClient( client_t *drop, const char *reason ) {
 	// send a heartbeat now so the master will get up to date info
 	// if there is already a slot for this ip, reuse it
 	for (i=0 ; i < sv_maxclients->integer ; i++ ) {
-		if ( svs.clients[i].state >= CS_CONNECTED ) {
+		if ( svs.clients[i].state >= CS_CONNECTED && !svs.clients[i].demoClient ) { // we check real players slots: if real players slots are all empty (not counting democlients), we send an heartbeat to update
 			break;
 		}
 	}
-	if ( i >= sv_maxclients->integer - sv_democlients->integer ) { // we check real players slots: if real players slots are filled, we send an heartbeat to update
+	if ( i == sv_maxclients->integer ) {
 		SV_Heartbeat_f();
 	}
 }

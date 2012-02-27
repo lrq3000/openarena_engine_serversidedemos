@@ -470,7 +470,12 @@ exit_loop:
 				//VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, num );
 				//SV_UpdateConfigstrings( num );
 				//SV_SetUserinfo( drop - svs.clients, "" );
-				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
+
+				/**** DEMOCLIENTS CONNECTION MANAGEMENT  ****/
+				// This part manages when a client should begin or be dropped based on the configstrings. This is a workaround because begin and disconnect events are managed in the gamecode, so we here use a clever way to know when these events happen (this is based on a careful reading of how work the mechanisms that manage players in a real game, so this should be OK in any case).
+				// Note: this part could also be used in userinfo instead of client configstrings (but since DropClient automatically sets userinfo to null, which is not the case the other way around, this way was preferred)
+				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg && strlen(tmpmsg) ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
+					Com_DPrintf("DebugGBOclientConfigString: begin %i\n", num);
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 
 					// Set some infos about this user:
@@ -492,15 +497,17 @@ exit_loop:
 					//SV_ClientEnterWorld(client, &client->lastUsercmd);
 					//SV_SendClientGameState( client );
 					VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
-				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && !tmpmsg ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
-					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
-
+				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && (!tmpmsg || !strlen(tmpmsg)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
+					Com_DPrintf("DebugGBOclientConfigString: disconnection %i\n", num);
 					client = &svs.clients[num];
 					SV_DropClient( client, "disconnected" ); // or SV_Disconnect_f(client);
-					//client->state = CS_FREE;
+					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
+					//client->state = CS_ZOMBIE; // or FREE?
 					//VM_Call( gvm, GAME_CLIENT_DISCONNECT, num ); // Works too! But using SV_DropClient should be cleaner (same as using SV_Disconnect_f)
 					//SV_SendServerCommand( client, "disconnect \"%s\"", NULL);
+					Com_DPrintf("DebugGBOclientConfigString: end of disconnection %i\n", num);
 				} else {
+					Com_DPrintf("DebugGBOclientConfigString: else %i\n", num);
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 				}
 				//SV_SendClientMessages();
@@ -843,10 +850,10 @@ void SV_DemoStartPlayback(void)
 	*/
 
 	// Start reading the first frame
-	SV_DemoReadFrame();
 	Com_Printf("Playing demo %s.\n", sv.demoName);
 	sv.demoState = DS_PLAYBACK;
 	Cvar_SetValue("sv_demoState", DS_PLAYBACK);
+	SV_DemoReadFrame(); // reading the first frame, which should contain some initialization events (eg: initial confistrings/userinfo when demo recording started, initial entities states and placement, etc..)
 }
 
 /*
