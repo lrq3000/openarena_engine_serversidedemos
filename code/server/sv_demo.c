@@ -301,6 +301,8 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 {
 	msg_t msg;
 
+	Com_DPrintf("DGBO SV_DemoWriteClientUserinfo: %i %s\n", client - svs.clients, userinfo);
+
 	if (strlen(userinfo) > 0) { // do the filtering only if the string is not empty
 		SV_DemoFilterClientUserinfo( userinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
 	}
@@ -508,8 +510,7 @@ exit_loop:
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				client = &svs.clients[num];
 				tmpmsg = MSG_ReadString(&msg);
-				sprintf(tmpmsg, "userinfo %s", tmpmsg); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
-				Cmd_TokenizeString(tmpmsg);
+				Cmd_TokenizeString( va("userinfo %s", tmpmsg) ); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
 				SV_UpdateUserinfo_f(client);
 				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, svs.clients[num].userinfo);
 				Cmd_RestoreCmdContext();
