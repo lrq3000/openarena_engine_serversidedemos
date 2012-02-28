@@ -502,32 +502,35 @@ exit_loop:
 					*/
 
 					// DEMOCLIENT TEAM MANAGEMENT
-					if (tmpmsg && strlen(tmpmsg) && svdnewteam >= TEAM_FREE && svdnewteam < TEAM_NUM_TEAMS ) {
+					if (tmpmsg && strlen(tmpmsg) && svdnewteam >= TEAM_FREE && svdnewteam < TEAM_NUM_TEAMS &&
+					    ( !svdoldteam || svdoldteam != svdnewteam ) && // if there was no team for this player before or if the new team is different
+					    !strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) ) {  // TOFIX: Also here we check that the democlient is not a bot by looking if the skill var exists: if it's a bot, setting all bots to their right team will make the gamecode crash (g_restarted set to 1), but I couldn't locate where the problem comes from (maybe the system tries to send them some packets?). Anyway, we don't really care that bots get set to the right team, they will anyway be replayed. But players will be ok.
 						// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
-						if ( !svdoldteam || svdoldteam != svdnewteam ) { // if there was no team for this player before or if the new team is different
-							char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
-							// copy/paste of TeamName in g_team.c (because it's a function in the gamecode and we can't access it)
-							if (svdnewteam == TEAM_FREE) {
-								strcpy(svdnewteamstr, "free");
-							} else if (svdnewteam == TEAM_RED) {
-								strcpy(svdnewteamstr, "red");
-							} else if (svdnewteam == TEAM_BLUE) {
-								strcpy(svdnewteamstr, "blue");
-							} else if (svdnewteam == TEAM_SPECTATOR) {
-								strcpy(svdnewteamstr, "spectator");
-							}
-							Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
-							SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
-						}
-					}
+						char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
 
+						// copy/paste of TeamName in g_team.c (because it's a function in the gamecode and we can't access it)
+						if (svdnewteam == TEAM_FREE) {
+							strcpy(svdnewteamstr, "free");
+						} else if (svdnewteam == TEAM_RED) {
+							strcpy(svdnewteamstr, "red");
+						} else if (svdnewteam == TEAM_BLUE) {
+							strcpy(svdnewteamstr, "blue");
+						} else if (svdnewteam == TEAM_SPECTATOR) {
+							strcpy(svdnewteamstr, "spectator");
+						}
+
+						Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
+						SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
+
+					} else { // clientbegin needs only to be issued if the team wasn't changed (team changing already takes care of issuing a clientbegin)
+						VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
+					}
 
 					//client = &svs.clients[num];
 					//SV_ClientEnterWorld(client, &client->lastUsercmd);
 					//SV_SendClientGameState( client );
-					VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
-				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && (!tmpmsg || !strlen(tmpmsg)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
-					// TOFIX? what happens if an already disconnected democlient get disconnected again (detectable because both the current configstring and new configstring are empty)?
+					//VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
+				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && strlen(sv.configstrings[CS_PLAYERS + num]) && (!tmpmsg || !strlen(tmpmsg)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore, we drop him (also we check that the old config was not empty, else we would be disconnecting a player who is already dropped)
 					Com_DPrintf("DebugGBOclientConfigString: disconnection %i\n", num);
 					client = &svs.clients[num];
 					SV_DropClient( client, "disconnected" ); // or SV_Disconnect_f(client);
