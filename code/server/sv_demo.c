@@ -477,6 +477,13 @@ exit_loop:
 				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg && strlen(tmpmsg) ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
 					Com_DPrintf("DebugGBOclientConfigString: begin %i\n", num);
 
+					client = &svs.clients[num];
+
+					int svdoldteam;
+					int svdnewteam;
+					svdoldteam = atoi(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t"));
+					svdnewteam = atoi(Info_ValueForKey(tmpmsg, "t"));
+
 					// Set the client configstring (using a standard Q3 function)
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 
@@ -493,6 +500,26 @@ exit_loop:
 					// call prog code to allow overrides
 					//VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, client - svs.clients );
 					*/
+
+					// DEMOCLIENT TEAM MANAGEMENT
+					if (tmpmsg && strlen(tmpmsg) && svdnewteam >= TEAM_FREE && svdnewteam < TEAM_NUM_TEAMS ) {
+						// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
+						if ( !svdoldteam || svdoldteam != svdnewteam ) { // if there was no team for this player before or if the new team is different
+							char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
+							// copy/paste of TeamName in g_team.c (because it's a function in the gamecode and we can't access it)
+							if (svdnewteam == TEAM_FREE) {
+								strcpy(svdnewteamstr, "free");
+							} else if (svdnewteam == TEAM_RED) {
+								strcpy(svdnewteamstr, "red");
+							} else if (svdnewteam == TEAM_BLUE) {
+								strcpy(svdnewteamstr, "blue");
+							} else if (svdnewteam == TEAM_SPECTATOR) {
+								strcpy(svdnewteamstr, "spectator");
+							}
+							Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
+							SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
+						}
+					}
 
 
 					//client = &svs.clients[num];
@@ -521,27 +548,33 @@ exit_loop:
 				client = &svs.clients[num];
 				tmpmsg = MSG_ReadString(&msg);
 
+				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, svs.clients[num].userinfo);
+
 				// Get the old and new team for the client
+				/*
 				char *svdoldteam = malloc( 10 * sizeof *svdoldteam );
-				char *svdnewteam = malloc( 10 * sizeof *svdnewteam ); // we can't use newteam because SV_UpdateUserinfo_f uses a similar variable so we have a side effect (computationally speaking) here
+				char *svdnewteam = malloc( 10 * sizeof *svdnewteam );
 				strcpy(svdoldteam, Info_ValueForKey(client->userinfo, "team"));
 				strcpy(svdnewteam, Info_ValueForKey(tmpmsg, "team"));
+				*/
 
-				Com_DPrintf("DebugGBOclientUserinfo2: oldteam: %s newteam: %s - strlen(tmpmsg): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(tmpmsg), strlen(svdnewteam));
+				//Com_DPrintf("DebugGBOclientUserinfo2: oldteam: %s newteam: %s - strlen(tmpmsg): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(tmpmsg), strlen(svdnewteam));
 
 				Cmd_TokenizeString( va("userinfo %s", tmpmsg) ); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
 				SV_UpdateUserinfo_f(client);
-				Com_DPrintf("DebugGBOclientUserinfo3: strlen(tmpmsg): %i strlen(newteam): %i\n", strlen(tmpmsg), strlen(svdnewteam));
-				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, svs.clients[num].userinfo);
+				//Com_DPrintf("DebugGBOclientUserinfo3: strlen(tmpmsg): %i strlen(newteam): %i\n", strlen(tmpmsg), strlen(svdnewteam));
+				//Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, svs.clients[num].userinfo);
 
 				// DEMOCLIENT TEAM MANAGEMENT
+				/* MOVED TO CLIENT CONFIGSTRINGS (more reliable)
 				if (tmpmsg && strlen(tmpmsg) && strlen(svdnewteam) ) {
-					Com_DPrintf("DebugGBOclientUserinfo4: TeamChange %i team %s\n", num, svdnewteam);
 					// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
 					if ( !strlen(svdoldteam) || strcmp(svdoldteam, svdnewteam) ) { // if there was no team for this player before or if the new team is different
 						SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
+						Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
 					}
 				}
+				*/
 
 				Cmd_RestoreCmdContext();
 				break;
