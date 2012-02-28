@@ -476,6 +476,8 @@ exit_loop:
 				// Note: this part could also be used in userinfo instead of client configstrings (but since DropClient automatically sets userinfo to null, which is not the case the other way around, this way was preferred)
 				if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && tmpmsg && strlen(tmpmsg) ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
 					Com_DPrintf("DebugGBOclientConfigString: begin %i\n", num);
+
+					// Set the client configstring (using a standard Q3 function)
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 
 					// Set some infos about this user:
@@ -498,6 +500,7 @@ exit_loop:
 					//SV_SendClientGameState( client );
 					VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
 				} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], tmpmsg) && (!tmpmsg || !strlen(tmpmsg)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore
+					// TOFIX? what happens if an already disconnected democlient get disconnected again (detectable because both the current configstring and new configstring are empty)?
 					Com_DPrintf("DebugGBOclientConfigString: disconnection %i\n", num);
 					client = &svs.clients[num];
 					SV_DropClient( client, "disconnected" ); // or SV_Disconnect_f(client);
@@ -506,7 +509,7 @@ exit_loop:
 					//VM_Call( gvm, GAME_CLIENT_DISCONNECT, num ); // Works too! But using SV_DropClient should be cleaner (same as using SV_Disconnect_f)
 					//SV_SendServerCommand( client, "disconnect \"%s\"", NULL);
 					Com_DPrintf("DebugGBOclientConfigString: end of disconnection %i\n", num);
-				} else {
+				} else { // In any other case (should there be?), we simply set the client configstring (which should not produce any error)
 					Com_DPrintf("DebugGBOclientConfigString: else %i\n", num);
 					SV_SetConfigstring(CS_PLAYERS + num, tmpmsg);
 				}
@@ -517,9 +520,29 @@ exit_loop:
 				num = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 				client = &svs.clients[num];
 				tmpmsg = MSG_ReadString(&msg);
+
+				// Get the old and new team for the client
+				char *svdoldteam = malloc( 10 * sizeof *svdoldteam );
+				char *svdnewteam = malloc( 10 * sizeof *svdnewteam ); // we can't use newteam because SV_UpdateUserinfo_f uses a similar variable so we have a side effect (computationally speaking) here
+				strcpy(svdoldteam, Info_ValueForKey(client->userinfo, "team"));
+				strcpy(svdnewteam, Info_ValueForKey(tmpmsg, "team"));
+
+				Com_DPrintf("DebugGBOclientUserinfo2: oldteam: %s newteam: %s - strlen(tmpmsg): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(tmpmsg), strlen(svdnewteam));
+
 				Cmd_TokenizeString( va("userinfo %s", tmpmsg) ); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
 				SV_UpdateUserinfo_f(client);
+				Com_DPrintf("DebugGBOclientUserinfo3: strlen(tmpmsg): %i strlen(newteam): %i\n", strlen(tmpmsg), strlen(svdnewteam));
 				Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, tmpmsg, svs.clients[num].userinfo);
+
+				// DEMOCLIENT TEAM MANAGEMENT
+				if (tmpmsg && strlen(tmpmsg) && strlen(svdnewteam) ) {
+					Com_DPrintf("DebugGBOclientUserinfo4: TeamChange %i team %s\n", num, svdnewteam);
+					// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
+					if ( !strlen(svdoldteam) || strcmp(svdoldteam, svdnewteam) ) { // if there was no team for this player before or if the new team is different
+						SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
+					}
+				}
+
 				Cmd_RestoreCmdContext();
 				break;
 			case demo_clientCommand: // client command management (generally automatic, such as tinfo for HUD team overlay status, team selection, etc.) - except userinfo command that is managed by another event
