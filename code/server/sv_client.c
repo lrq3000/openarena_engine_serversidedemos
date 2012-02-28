@@ -1507,8 +1507,11 @@ void SV_ExecuteClientCommand( client_t *cl, const char *s, qboolean clientOK ) {
 	if (clientOK) {
 		// pass unknown strings to the game
 		if (!u->name && sv.state == SS_GAME && (cl->state == CS_ACTIVE || cl->state == CS_PRIMED || cl->demoClient )) {
-			if ( sv.demoState == DS_RECORDING ) {
+			if ( sv.demoState == DS_RECORDING ) { // if demo is recording, we store this command and clientid
 				SV_DemoWriteClientCommand( cl, s );
+			} else if ( sv.demoState == DS_PLAYBACK && ( !strcmp(Cmd_Argv(0), "team") && strcmp(Cmd_Argv(1), "s") && strcmp(Cmd_Argv(1), "spectator") ) ) { // if there is a demo playback, we prevent any team change and issue a chat messsage (except if the player join team spectator again)
+				SV_SendServerCommand(cl, "chat \"^3Can't join a team when a demo is replaying!\""); // issue a chat message only to the player trying to join a team
+				return;
 			}
 			if(strcmp(Cmd_Argv(0), "say") && strcmp(Cmd_Argv(0), "say_team") )
 				Cmd_Args_Sanitize(); //remove \n, \r and ; from string. We don't do that for say-commands because it makes people mad (understandebly)

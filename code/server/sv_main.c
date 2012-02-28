@@ -213,6 +213,7 @@ void QDECL SV_SendServerCommand(client_t *cl, const char *fmt, ...) {
 	}
 
 	// save broadcasts to demo
+	// note: in the case a command is only issued to a specific client, it is NOT recorded (see above when cl != NULL). If you want to record them, just place this code above.
 	if ( sv.demoState == DS_RECORDING ) {
 		SV_DemoWriteServerCommand( (char *)message );
 	}

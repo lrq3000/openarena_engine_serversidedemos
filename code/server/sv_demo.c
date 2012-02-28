@@ -593,7 +593,7 @@ exit_loop:
 				Com_DPrintf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
 				Cmd_RestoreCmdContext();
 				break;
-			case demo_serverCommand: // server command management - except print/cp (already handled by serverCommand),
+			case demo_serverCommand: // server command management - except print/cp (already handled by gameCommand),
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
@@ -602,7 +602,7 @@ exit_loop:
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
-			case demo_gameCommand: // game command management - such as prints/centerprint (cp) scores command - except chat/tchat (handled by clientCommand)
+			case demo_gameCommand: // game command management - such as prints/centerprint (cp) scores command - except chat/tchat (handled by clientCommand) - basically the same as demo_serverCommand (because sv_GameSendServerCommand uses SV_SendServerCommand, so it's a bit redundant here, we can delete one of the two, preferably this one because the other is a more standard way and more commands pass through it)
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
@@ -768,8 +768,8 @@ Note for developers: this is basically a mirror of SV_DemoStartRecord() but the 
 void SV_DemoStartPlayback(void)
 {
 	msg_t msg;
-	int r, clients, fps, gametype;
-	//int i, num; // FIXME: useless variables
+	int r, i, clients, fps, gametype;
+	//int num; // FIXME: useless variables
 	char *map;
 	//char *str;
 
@@ -907,6 +907,13 @@ void SV_DemoStartPlayback(void)
 		}
 	}
 	*/
+
+	// Force all real clients to be set to spectator team
+	for (i = sv_democlients->integer; i < sv_maxclients->integer; i++) {
+		//SV_ExecuteClientCommand(&svs.clients[i], "team spectator", qtrue);
+		//SV_SendServerCommand(&svs.clients[i], "forceteam %i spectator", i);
+		Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
+	}
 
 	// Start reading the first frame
 	Com_Printf("Playing demo %s.\n", sv.demoName);
