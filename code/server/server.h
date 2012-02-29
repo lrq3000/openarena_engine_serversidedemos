@@ -266,7 +266,7 @@ extern	cvar_t	*sv_rconPassword;
 extern	cvar_t	*sv_privatePassword;
 extern	cvar_t	*sv_allowDownload;
 extern	cvar_t	*sv_maxclients;
-extern	cvar_t	*sv_democlients;
+extern	cvar_t	*sv_democlients; // number of democlients: this should always be set to 0, and will be automatically adjusted when needed by the demo facility. ATTENTION: if sv_maxclients = sv_democlients then server will be full! sv_democlients consume clients slots even if there are no democlients recorded nor replaying for this slot!
 
 extern	cvar_t	*sv_privateClients;
 extern	cvar_t	*sv_hostname;

@@ -332,7 +332,7 @@ void SV_DemoWriteFrame(void)
 
 	MSG_Init(&msg, buf, sizeof(buf));
 
-	// Write entities
+	// Write entities (gentity_t->entityState_t or concretely sv.gentities[num].s, in gamecode level. instead of sv.)
 	MSG_WriteByte(&msg, demo_entityState);
 	for (i = 0; i < sv.num_entities; i++)
 	{
@@ -343,7 +343,9 @@ void SV_DemoWriteFrame(void)
 		MSG_WriteDeltaEntity(&msg, &sv.demoEntities[i].s, &entity->s, qfalse);
 		sv.demoEntities[i].s = entity->s;
 	}
-	MSG_WriteBits(&msg, ENTITYNUM_NONE, GENTITYNUM_BITS);
+	MSG_WriteBits(&msg, ENTITYNUM_NONE, GENTITYNUM_BITS); // End marker/Condition to break: since we don't know prior how many entities we store, when reading  the demo we will use an empty entity to break from our while loop
+
+	// Write entities (gentity_t->entityShared_t or concretely sv.gentities[num].r, in gamecode level. instead of sv.)
 	MSG_WriteByte(&msg, demo_entityShared);
 	for (i = 0; i < sv.num_entities; i++)
 	{
@@ -353,10 +355,10 @@ void SV_DemoWriteFrame(void)
 		MSG_WriteDeltaSharedEntity(&msg, &sv.demoEntities[i].r, &entity->r, qfalse, i);
 		sv.demoEntities[i].r = entity->r;
 	}
-	MSG_WriteBits(&msg, ENTITYNUM_NONE, GENTITYNUM_BITS);
-	SV_DemoWriteMessage(&msg);
+	MSG_WriteBits(&msg, ENTITYNUM_NONE, GENTITYNUM_BITS); // End marker/Condition to break: since we don't know prior how many entities we store, when reading  the demo we will use an empty entity to break from our while loop
+	//SV_DemoWriteMessage(&msg); // TOFIX: useless? This will write twice the necessary amount of data, since we already write the whole message below!
 
-	// Write clients
+	// Write clients playerState (playerState_t)
 	for (i = 0; i < sv_maxclients->integer; i++)
 	{
 		if (svs.clients[i].state < CS_ACTIVE)
@@ -367,8 +369,14 @@ void SV_DemoWriteFrame(void)
 		MSG_WriteDeltaPlayerstate(&msg, &sv.demoPlayerStates[i], player);
 		sv.demoPlayerStates[i] = *player;
 	}
+
+	// Write end of frame marker: this will commit every demo entity change (and it's done at the very end of every server frame to overwrite any change the gamecode/engine may have done)
 	MSG_WriteByte(&msg, demo_endFrame);
+
+	// Write server time (will overwrite the server time every end of frame)
 	MSG_WriteLong(&msg, sv.time);
+
+	// Commit all these datas to the demo file
 	SV_DemoWriteMessage(&msg);
 }
 
@@ -433,22 +441,6 @@ exit_loop:
 			case demo_EOF: // end of a demo event (the loop will continue to real the next event)
 				MSG_Clear(&msg);
 				goto exit_loop;
-			case demo_endDemo: // end of the demo file
-				SV_DemoStopPlayback();
-				return;
-			case demo_endFrame: // end of the frame - players and entities game status management: we move every players, update their game status (ammos, armor, placement, etc...) and update entities (items respawn, flags items, etc.), then release the demo frame reading here to the next server (and demo) frame
-				// Overwrite anything the game may have changed
-				for (i = 0; i < sv.num_entities; i++)
-				{
-					if (i >= sv_democlients->integer && i < MAX_CLIENTS) // FIXME? shouldn't MAX_CLIENTS be sv_maxclients->integer?
-						continue;
-					*SV_GentityNum(i) = sv.demoEntities[i];
-				}
-				for (i = 0; i < sv_democlients->integer; i++)
-					*SV_GameClientNum(i) = sv.demoPlayerStates[i];
-				// Set the server time
-				sv.time = MSG_ReadLong(&msg);
-				return;
 			case demo_configString: // general configstrings setting (such as capture scores CS_SCORES1/2, etc.) - except clients configstrings
 				//num = MSG_ReadBits(&msg, MAX_CONFIGSTRINGS);
 				num = atoi(MSG_ReadString(&msg));
@@ -621,7 +613,7 @@ exit_loop:
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
-			case demo_entityState: // manage gentity (some more gentities game status management, see demo_endFrame)
+			case demo_entityState: // manage gentity->entityState_t (some more gentities game status management, see demo_endFrame)
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -632,7 +624,7 @@ exit_loop:
 					sv.demoEntities[num].s = entity->s;
 				}
 				break;
-			case demo_entityShared: // more gentity management (GBO: I guess this is what manages items availability for example)
+			case demo_entityShared: // more gentity->entityShared_t management (see g_local.h for more infos)
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
@@ -653,6 +645,22 @@ exit_loop:
 						sv.num_entities = num;
 				}
 				break;
+			case demo_endFrame: // end of the frame - players and entities game status update: we commit every demo entity to the server, update the server time, then release the demo frame reading here to the next server (and demo) frame
+				// Overwrite anything the game may have changed
+				for (i = 0; i < sv.num_entities; i++)
+				{
+					if (i >= sv_democlients->integer && i < MAX_CLIENTS) // FIXME? shouldn't MAX_CLIENTS be sv_maxclients->integer?
+						continue;
+					*SV_GentityNum(i) = sv.demoEntities[i];
+				}
+				for (i = 0; i < sv_democlients->integer; i++)
+					*SV_GameClientNum(i) = sv.demoPlayerStates[i];
+				// Set the server time
+				sv.time = MSG_ReadLong(&msg);
+				return;
+			case demo_endDemo: // end of the demo file
+				SV_DemoStopPlayback();
+				return;
 			}
 		}
 	}
