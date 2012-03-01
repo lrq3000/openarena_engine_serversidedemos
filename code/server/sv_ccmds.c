@@ -387,17 +387,7 @@ static void SV_MapRestart_f( void ) {
 
         // start recording a demo
         if ( sv_autoDemo->integer ) {
-                qtime_t now;
-                Com_RealTime( &now );
-                Cbuf_AddText( va( "demo_record %s-%04d%02d%02d%02d%02d%02d-%s\n",
-			sv_hostname->string,
-                        1900 + now.tm_year,
-                        1 + now.tm_mon,
-                        now.tm_mday,
-                        now.tm_hour,
-                        now.tm_min,
-                        now.tm_sec,
-                        Cvar_VariableString( "mapname" ) ) );
+                SV_DemoAutoDemoRecord();
         }
 }
 
@@ -1316,7 +1306,7 @@ static void SV_Demo_Record_f( void ) {
         }
 
         if (sv_maxclients->integer == MAX_CLIENTS) {
-                Com_Printf("Too many slots, reduce sv_maxclients.\n");
+                Com_Printf("DEMO: ERROR: Too many client slots, reduce sv_maxclients and retry.\n");
                 return;
         }
 
@@ -1331,14 +1321,14 @@ static void SV_Demo_Record_f( void ) {
                                 break;  // file doesn't exist
                 }
                 if (number < 0) {
-                        Com_Printf("Couldn't generate a filename for the demo, try deleting some old ones.\n");
+                        Com_Printf("DEMO: ERROR: Couldn't generate a filename for the demo, try deleting some old ones.\n");
                         return;
                 }
         }
 
         sv.demoFile = FS_FOpenFileWrite(sv.demoName);
         if (!sv.demoFile) {
-                Com_Printf("ERROR: Couldn't open %s for writing.\n", sv.demoName);
+                Com_Printf("DEMO: ERROR: Couldn't open %s for writing.\n", sv.demoName);
                 return;
         }
         SV_DemoStartRecord();

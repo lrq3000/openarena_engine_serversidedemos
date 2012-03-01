@@ -398,6 +398,8 @@ qboolean SV_CheckServerCommand( const char *cmd );
 qboolean SV_CheckGameCommand( const char *cmd );
 qboolean SV_CheckConfigString( int cs_index, const char *cs_string );
 void SV_DemoFilterClientUserinfo( const char *userinfo );
+void SV_DemoAutoDemoRecord(void);
+char *SV_CleanFilename( char *string );
 
 //
 // sv_game.c

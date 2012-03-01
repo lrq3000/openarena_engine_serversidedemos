@@ -1045,3 +1045,71 @@ void SV_DemoStopPlayback(void)
 	return;
 
 }
+
+
+/*
+====================
+SV_CleanFilename
+
+Attempts to clean invalid characters from a filename that may prevent the demo to be stored on the filesystem
+====================
+*/
+char *SV_CleanFilename( char *str ) {
+	char*	string = malloc ( MAX_NAME_LENGTH * sizeof * string );
+
+	char*	d;
+	char*	s;
+	int		c;
+
+	Q_strncpyz(string, str, MAX_NAME_LENGTH);
+
+	s = string;
+	d = string;
+	while ((c = *s) != 0 ) {
+		if ( Q_IsColorString( s ) ) {
+			s++; // skip if it's a color
+		}
+		else if ( c == 0x2D || c == 0x2E || c == 0x5F || // - . _
+			 (c >= 0x30 && c <= 0x39) || // numbers
+			 (c >= 0x41 && c <= 0x5A) || // uppercase letters
+			 (c >= 0x61 && c <= 0x7A) // lowercase letters
+			 ) {
+			*d++ = c; // keep if this character is not forbidden (contained inside the above whitelist)
+		}
+		s++; // go to next character
+	}
+	*d = '\0';
+
+	return string;
+}
+
+
+/*
+====================
+SV_DemoAutoDemoRecord
+
+Generates a meaningful demo filename and automatically starts the demo recording.
+This function is used in conjunction with the variable sv_autoDemo 1
+Note: be careful, if the hostname contains bad characters, the demo may not be able to be saved at all! There's a small filtering in place but a bad filename may pass through!
+Note2: this function is called at MapRestart and SpawnServer, in now way it's called right at the time.
+====================
+*/
+void SV_DemoAutoDemoRecord(void)
+{
+	qtime_t now;
+	Com_RealTime( &now );
+
+	const char *demoname = va( "%s_%04d-%02d-%02d-%02d-%02d-%02d_%s\n",
+			SV_CleanFilename(sv_hostname->string),
+                        1900 + now.tm_year,
+                        1 + now.tm_mon,
+                        now.tm_mday,
+                        now.tm_hour,
+                        now.tm_min,
+                        now.tm_sec,
+                        SV_CleanFilename(Cvar_VariableString( "mapname" )) );
+
+	Com_Printf("DEMO: recording a server-side demo to: %s/svdemos/%s.svdm_%d\n",  strlen(Cvar_VariableString("fs_game")) ?  Cvar_VariableString("fs_game") : BASEGAME, demoname, PROTOCOL_VERSION);
+
+        Cbuf_AddText( va("demo_record %s", demoname ) );
+}
