@@ -790,8 +790,8 @@ void SV_DemoStartPlayback(void)
 	msg_t msg;
 	int r, i, clients, fps, gametype;
 	//int num; // FIXME: useless variables
-	char *map;
-	char *fs;
+	char *map = malloc( MAX_QPATH * sizeof *map );
+	char *fs = malloc( MAX_QPATH * sizeof *fs );
 
 	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
 		keepSaved--;
@@ -862,10 +862,10 @@ void SV_DemoStartPlayback(void)
 	gametype = MSG_ReadLong(&msg);
 
 	// reading fs_game (mod name)
-	fs = MSG_ReadString(&msg);
+	strcpy(fs, MSG_ReadString(&msg));
 
 	// reading map (from the demo)
-	map = MSG_ReadString(&msg);
+	strcpy(map, MSG_ReadString(&msg));
 	if (!FS_FOpenFileRead(va("maps/%s.bsp", map), NULL, qfalse))
 	{
 		Com_Printf("Map does not exist: %s.\n", map);
@@ -873,7 +873,7 @@ void SV_DemoStartPlayback(void)
 		return;
 	}
 
-	Com_DPrintf("DGBO loadtest: fs:%s map%s\n", fs, map);
+	Com_DPrintf("DGBO loadtest: fs:%s map:%s\n", fs, map);
 
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
