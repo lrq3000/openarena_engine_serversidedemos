@@ -1,7 +1,7 @@
 /*
 ===========================================================================
 Copyright (C) 2008 Amanieu d'Antras
-Copyright (C) 2012 Stephen Larroque
+Copyright (C) 2012 Stephen Larroque <lrq3000@gmail.com>
 
 This file is part of OpenArena.
 
@@ -54,6 +54,8 @@ static int savedMaxClients = -1;
 static int savedDemoClients = -1;
 static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
+static int savedGametype = -1;
+static const char *savedFsGame = "";
 static int keepSaved = 0; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched) or if we can restore them
 
 
@@ -512,9 +514,11 @@ exit_loop:
 							strcpy(svdnewteamstr, "spectator");
 						}
 
-						Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
+						Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr)); // in fact, doing "team free" for any client will produce a curious effect: the client will always be put to the right team by the gamecode.
 						SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
 
+					//} else if (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" ))) {
+						//SV_ExecuteClientCommand(&svs.clients[num], "team free", qtrue);
 					} else { // clientbegin needs only to be issued if the team wasn't changed (team changing already takes care of issuing a clientbegin)
 						VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
 					}
@@ -581,7 +585,9 @@ exit_loop:
 				tmpmsg = MSG_ReadString(&msg);
 				//Cmd_TokenizeString(tmpmsg);
 				Com_DPrintf("DebugGBOclientCommand: %i %s\n", num, tmpmsg);
-				SV_ExecuteClientCommand(&svs.clients[num], tmpmsg, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
+				if ( ! (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) && !strncmp(tmpmsg, "team", 4) ) ) { // FIXME: to prevent bots from setting their team (which crash the demo), we prevent them from sending team commands
+					SV_ExecuteClientCommand(&svs.clients[num], tmpmsg, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
+				}
 				player = SV_GameClientNum( num );
 				Com_DPrintf("DebugGBOclientCommand2 captures: %i %i\n", num, player->persistant[PERS_CAPTURES] );
 				Cmd_RestoreCmdContext();
@@ -633,6 +639,8 @@ exit_loop:
 						break;
 					entity = SV_GentityNum(num);
 					MSG_ReadDeltaSharedEntity(&msg, &sv.demoEntities[num].r, &entity->r, num);
+
+					entity->r.svFlags &= ~SVF_BOT; // fix bots camera freezing issues - because since now the engine will consider these democlients just as normal players, it won't be using anymore special bots fields and instead just use the standard viewangles field to replay the camera movements
 
 					// Link/unlink the entity
 					if (entity->r.linked && (!sv.demoEntities[num].r.linked ||
@@ -701,6 +709,9 @@ void SV_DemoStartRecord(void)
 	MSG_WriteLong(&msg, sv_fps->integer);
 	// Write g_gametype
 	MSG_WriteLong(&msg, sv_gametype->integer);
+	// Write fs_game (mod name)
+	MSG_WriteString(&msg, Cvar_VariableString("fs_game"));
+	Com_DPrintf("DGBO savetest: fs:%s\n", Cvar_VariableString("fs_game"));
 	// Write map name
 	MSG_WriteString(&msg, sv_mapname->string);
 
@@ -780,7 +791,7 @@ void SV_DemoStartPlayback(void)
 	int r, i, clients, fps, gametype;
 	//int num; // FIXME: useless variables
 	char *map;
-	//char *str;
+	char *fs;
 
 	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
 		keepSaved--;
@@ -850,6 +861,9 @@ void SV_DemoStartPlayback(void)
 	// reading g_gametype (from the demo)
 	gametype = MSG_ReadLong(&msg);
 
+	// reading fs_game (mod name)
+	fs = MSG_ReadString(&msg);
+
 	// reading map (from the demo)
 	map = MSG_ReadString(&msg);
 	if (!FS_FOpenFileRead(va("maps/%s.bsp", map), NULL, qfalse))
@@ -859,10 +873,13 @@ void SV_DemoStartPlayback(void)
 		return;
 	}
 
+	Com_DPrintf("DGBO loadtest: fs:%s map%s\n", fs, map);
+
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
 	// FIXME? why sv_cheats is needed?
 	if ( !com_sv_running->integer || strcmp(sv_mapname->string, map) ||
+	    strcmp(Cvar_VariableString("fs_game"), fs) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time ||
 	    sv_maxclients->modified || sv_democlients->modified ||
 	    sv_gametype->integer != gametype )
@@ -872,6 +889,15 @@ void SV_DemoStartPlayback(void)
 		// delay command is here used as a workaround for waiting until the map is fully restarted
 
 		SV_DemoStopPlayback();
+
+		savedGametype = sv_gametype->integer;
+		keepSaved = 1;
+
+		if ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) { // change the game mod only if necessary (because it will restart the game engine and so probably every client will get disconnected)
+			savedFsGame = Cvar_VariableString("fs_game");
+			Cbuf_AddText(va("game_restart %s\n", fs));
+		}
+
 		Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
 		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
 		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
@@ -965,6 +991,13 @@ void SV_DemoStopPlayback(void)
 
 		if (savedFPS > 0)
 			Cvar_SetValue("sv_fps", savedFPS);
+
+		if (strlen(savedFsGame))
+			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
+
+		if (savedGametype > 0)
+			Cvar_SetValueLatched("g_gametype", savedGametype);
+			Cbuf_AddText("map_restart 0\n");
 	}
 
 	// demo hasn't actually started yet
