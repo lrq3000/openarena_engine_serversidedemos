@@ -1206,14 +1206,6 @@ void	Huff_setBloc(int _bloc);
 
 extern huffman_t clientHuffTables;
 
-
-//
-// sv_demo_ext.c
-//
-
-//void SV_GentityGetFieldSV_GentityGetField( intptr_t *args );
-
-
 #define	SV_ENCODE_START		4
 #define SV_DECODE_START		12
 #define	CL_ENCODE_START		12

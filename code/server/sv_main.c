@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "server.h"
-//#include "../game/g_local.h" // TODELETE
 
 #ifdef USE_VOIP
 cvar_t *sv_voip;
@@ -30,8 +29,6 @@ cvar_t *sv_voip;
 serverStatic_t	svs;				// persistant server info
 server_t		sv;					// local server
 vm_t			*gvm = NULL;				// game virtual machine
-
-int				oldhealth[MAX_CLIENTS];
 
 cvar_t	*sv_fps = NULL;			// time rate for running non-clients
 cvar_t	*sv_timeout;			// seconds without any message
@@ -1060,9 +1057,6 @@ happen before SV_Frame is called
 void SV_Frame( int msec ) {
 	int		frameMsec;
 	int		startTime;
-	playerState_t *player;
-	clientSnapshot_t	*frame;
-	int i;
 
 	// the menu kills the server with this cvar
 	if ( sv_killserver->integer ) {
@@ -1160,17 +1154,6 @@ void SV_Frame( int msec ) {
 			SV_DemoWriteFrame();
 		else if (sv.demoState == DS_PLAYBACK)
 			SV_DemoReadFrame();
-
-			for (i = 0; i < sv_democlients->integer; i++)
-			{
-				player = SV_GameClientNum(i);
-				if ( player->pm_type != PM_SPECTATOR && (oldhealth[i] != player->stats[STAT_HEALTH] || oldhealth[i] != sv.demoPlayerStates[i].stats[STAT_HEALTH]) ) {
-					Com_DPrintf("DGBO SV_HEALTHTEST: client %i playerhealth:%i demohealth:%i playerarmor:%i\n", i, player->stats[STAT_HEALTH], sv.demoPlayerStates[i].stats[STAT_HEALTH], player->stats[STAT_ARMOR]);
-					oldhealth[i] = player->stats[STAT_HEALTH];
-					SV_GentityGetField( SV_GentityNum(i) );
-					//ent = SV_GentityNum(i);
-				}
-			}
 	}
 
 	if ( com_speeds->integer ) {
@@ -1182,18 +1165,6 @@ void SV_Frame( int msec ) {
 
 	// send messages back to the clients
 	SV_SendClientMessages();
-
-	/*
-	for (i = 0; i < sv_democlients->integer; i++)
-	{
-		//player = SV_GameClientNum(i);
-		frame = &svs.clients[i].frames[ svs.clients[i].netchan.outgoingSequence & PACKET_MASK ];
-		if ( frame->ps.pm_type != PM_SPECTATOR && (oldhealth[i] != frame->ps.stats[STAT_HEALTH] || oldhealth[i] != sv.demoPlayerStates[i].stats[STAT_HEALTH]) ) {
-			Com_DPrintf("DGBO SV_HEALTHTEST: client %i framehealth:%i demohealth:%i framearmor:%i\n", i, frame->ps.stats[STAT_HEALTH], sv.demoPlayerStates[i].stats[STAT_HEALTH], frame->ps.stats[STAT_ARMOR]);
-			oldhealth[i] = frame->ps.stats[STAT_HEALTH];
-		}
-	}
-	*/
 
 	// send a heartbeat to the master if needed
 	SV_MasterHeartbeat(sv_heartbeat->string);

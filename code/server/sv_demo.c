@@ -25,7 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "server.h"
 
-
 /***********************************************
  * VARIABLES
  *
@@ -42,7 +41,6 @@ typedef enum {
 	demo_clientUserinfo, // client userinfo event (client_t management)
 	demo_entityState, // gentity_t->entityState_t management
 	demo_entityShared, // gentity_t->entityShared_t management
-	//demo_entityFields, // gentity_t fields management (that are not saved by the others demo_entity* events)
 	demo_playerState, // players game state event (playerState_t management)
 	demo_endDemo, // end of demo event (close the demo)
 	demo_EOF // end of file/flux event (end of event, separator, notify the demo parser to iterate to the next event of the _same_ frame)
@@ -304,6 +302,8 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 {
 	msg_t msg;
 
+	Com_DPrintf("DGBO SV_DemoWriteClientUserinfo: %i %s\n", client - svs.clients, userinfo);
+
 	if (strlen(userinfo) > 0) { // do the filtering only if the string is not empty
 		SV_DemoFilterClientUserinfo( userinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
 	}
@@ -314,39 +314,6 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 	MSG_WriteString(&msg, userinfo); // write the (filtered) userinfo string
 	SV_DemoWriteMessage(&msg); // commit this demo event in the demo file
 }
-
-/*
-====================
-SV_DemoWriteEntitiesFields
-
-Write an gentity_t (sv.gentities in the engine - level.gentities in the gamecode) fields that are not recorded in the other demo functions such as health and speed.
-====================
-*/
-/*
-void SV_DemoWriteEntitiesFields( int entityNum )
-{
-	msg_t msg;
-	sharedEntity_t *entity;
-
-	MSG_Init(&msg, buf, sizeof(buf));
-	MSG_WriteByte(&msg, demo_entityFields);
-	MSG_WriteBits(&msg, entityNum, GENTITYNUM_BITS); // write the entity number
-
-	// Get the entity
-	entity = SV_GentityNum(entityNum);
-
-	// Write the delta for health and speed (difference from the old value - from demo entity - to the new - from game's entity. In fact the difference is: if both values are different, store the new one. If they are equal, store nothing and just store a bit to say that there's no change - that may save a lot of storage space)
-	WriteDelta(&msg, &sv.demoEntities[entityNum].health, &entity->health, 16); // big number for mods using 9999 HP
-	WriteDelta(&msg, &sv.demoEntities[entityNum].speed, &entity->speed, 16); // big number, above 20Kups it's almost impossible to go faster, and certainly not in one frame!
-
-	// Store the new health and speed iinto the demo entity, this will serve on the next frame as the old value to compare with the new value to compute the delta
-	sv.demoEntities[entityNum].health = entity->health;
-	sv.demoEntities[entityNum].speed = entity->speed;
-
-	// Commit this demo event in the demo file
-	SV_DemoWriteMessage(&msg);
-}
- */
 
 /*
 ====================
@@ -365,15 +332,6 @@ void SV_DemoWriteFrame(void)
 	int i;
 
 	MSG_Init(&msg, buf, sizeof(buf));
-
-	// Write entities fields
-	/*
-	for (i = 0; i < sv.num_entities; i++)
-	{
-		SV_DemoWriteEntitiesFields(i);
-	}
-	*/
-
 
 	// Write entities (gentity_t->entityState_t or concretely sv.gentities[num].s, in gamecode level. instead of sv.)
 	MSG_WriteByte(&msg, demo_entityState);
@@ -656,15 +614,7 @@ exit_loop:
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
-			/*
-			case demo_entityFields: // manage gentity_t fields (except the one that are managed by entityState - this event does not handle many fields yet)
-				num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
-				entity = SV_GentityNum(num);
-				sv.demoEntities[num].health = MSG_ReadDelta(&msg, &sv.demoEntities[num].health, 16);
-				sv.demoEntities[num].speed = MSG_ReadDelta(&msg, &sv.demoEntities[num].speed, 16);
-				break;
-			*/
-			case demo_entityState: // manage gentity_t->entityState_t (some more gentities game status management, see demo_endFrame)
+			case demo_entityState: // manage gentity->entityState_t (some more gentities game status management, see demo_endFrame)
 				while (1)
 				{
 					num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
