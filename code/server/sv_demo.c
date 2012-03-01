@@ -46,6 +46,9 @@ typedef enum {
 	demo_EOF // end of file/flux event (end of event, separator, notify the demo parser to iterate to the next event of the _same_ frame)
 } demo_ops_e;
 
+/*** STATIC VARIABLES ***/
+// We set them as static so that they are global only for this file, this limit a bit the side-effect
+
 // Big fat buffer to store all our stuff
 static byte buf[0x400000];
 
@@ -55,7 +58,8 @@ static int savedDemoClients = -1;
 static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int savedGametype = -1;
-static const char *savedFsGame = "";
+static char savedFsGameVal[MAX_QPATH] = "";
+static char *savedFsGame = &savedFsGameVal;
 static int keepSaved = 0; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched) or if we can restore them
 
 
@@ -817,7 +821,7 @@ void SV_DemoStartPlayback(void)
 	r = FS_Read(msg.data, msg.cursize, sv.demoFile);
 	if (r != msg.cursize)
 	{
-		Com_Printf("Demo file was truncated.\n");
+		Com_Printf("DEMO: ERROR: Demo file was truncated.\n");
 		SV_DemoStopPlayback();
 		return;
 	}
@@ -898,14 +902,16 @@ void SV_DemoStartPlayback(void)
 
 		if ( ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
 		    (!strlen(fs) && strcmp(Cvar_VariableString("fs_game"), fs) && strcmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
-			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", fs);
 			if (strlen(Cvar_VariableString("fs_game"))) { // if fs_game is not "", we save it
-				savedFsGame = Cvar_VariableString("fs_game");
+				Q_strncpyz(savedFsGame, (const char*)Cvar_VariableString("fs_game"), MAX_QPATH);
 			} else { // else, it's equal to "", and this means that we were playing in the basegame mod
-				savedFsGame = BASEGAME;
+				Q_strncpyz(savedFsGame, BASEGAME, MAX_QPATH);
 			}
+			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", savedFsGame); // Show savedFsGame instead of fs in the case fs is empty (it will print the default basegame mod)
 			Cbuf_AddText(va("game_restart %s\n", fs));
 		}
+		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
+		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
 
 		Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
 		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
@@ -990,6 +996,8 @@ void SV_DemoStopPlayback(void)
 	// restore maxclients and democlients
 	// Note: must do it before the map_restart! so that it takes effect (because it's latched)
 	if (keepSaved == 0) {
+		Com_DPrintf("DEMODEBUG reloadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
+
 		if (savedMaxClients >= 0 && savedDemoClients >= 0) {
 			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
 			Cvar_SetValueLatched("sv_democlients", savedDemoClients);
@@ -1008,11 +1016,14 @@ void SV_DemoStopPlayback(void)
 
 		if (strlen(savedFsGame))
 			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
-			savedFsGame = "";
+			Q_strncpyz(savedFsGame, "", MAX_QPATH);
 
 		if (savedGametype > 0)
 			Cvar_SetValueLatched("g_gametype", savedGametype);
 			savedGametype = -1;
+
+		Com_DPrintf("DEMODEBUG reloadtestsaved2: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
+		Com_DPrintf("DEMODEBUG reloadtestsaved3: Fs_Game:%s Gametype:%i\n", Cvar_VariableString("fs_game"), sv_gametype->integer);
 	}
 
 	// demo hasn't actually started yet
