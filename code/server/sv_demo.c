@@ -896,9 +896,14 @@ void SV_DemoStartPlayback(void)
 		savedGametype = sv_gametype->integer;
 		keepSaved = 1;
 
-		if ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) { // change the game mod only if necessary (because it will restart the game engine and so probably every client will get disconnected)
+		if ( ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
+		    (!strlen(fs) && strcmp(Cvar_VariableString("fs_game"), fs) && strcmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
 			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", fs);
-			savedFsGame = Cvar_VariableString("fs_game");
+			if (strlen(Cvar_VariableString("fs_game"))) { // if fs_game is not "", we save it
+				savedFsGame = Cvar_VariableString("fs_game");
+			} else { // else, it's equal to "", and this means that we were playing in the basegame mod
+				savedFsGame = BASEGAME;
+			}
 			Cbuf_AddText(va("game_restart %s\n", fs));
 		}
 
@@ -988,20 +993,26 @@ void SV_DemoStopPlayback(void)
 		if (savedMaxClients >= 0 && savedDemoClients >= 0) {
 			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
 			Cvar_SetValueLatched("sv_democlients", savedDemoClients);
+
+			savedMaxClients = -1;
+			savedDemoClients = -1;
 		}
 
 		if (savedBotMinPlayers >= 0)
 			Cvar_SetValue("bot_minplayers", savedBotMinPlayers);
+			savedBotMinPlayers = -1;
 
 		if (savedFPS > 0)
 			Cvar_SetValue("sv_fps", savedFPS);
+			savedFPS = -1;
 
 		if (strlen(savedFsGame))
 			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
+			savedFsGame = "";
 
 		if (savedGametype > 0)
 			Cvar_SetValueLatched("g_gametype", savedGametype);
-			Cbuf_AddText("map_restart 0\n");
+			savedGametype = -1;
 	}
 
 	// demo hasn't actually started yet
@@ -1014,7 +1025,7 @@ void SV_DemoStopPlayback(void)
 #endif
 	} else if (olddemostate == DS_PLAYBACK) {
 #ifdef DEDICATED
-		Cbuf_AddText("map_restart 0\n");
+		Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
 #else
 		Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
 #endif

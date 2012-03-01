@@ -389,7 +389,8 @@ static void SV_MapRestart_f( void ) {
         if ( sv_autoDemo->integer ) {
                 qtime_t now;
                 Com_RealTime( &now );
-                Cbuf_AddText( va( "demo_record %04d%02d%02d%02d%02d%02d-%s\n",
+                Cbuf_AddText( va( "demo_record %s%04d%02d%02d%02d%02d%02d-%s\n",
+			sv_hostname->string,
                         1900 + now.tm_year,
                         1 + now.tm_mon,
                         now.tm_mday,
