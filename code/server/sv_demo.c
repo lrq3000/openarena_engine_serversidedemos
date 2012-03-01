@@ -825,7 +825,7 @@ void SV_DemoStartPlayback(void)
 	// Check slots, time and map
 	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS);
 	if (sv_democlients->integer < clients) {
-		Com_Printf("Not enough demo slots, automatically increasing sv_democlients to %d and sv_maxclients to %d.\n", clients, sv_maxclients->integer + clients);
+		Com_Printf("DEMO: Not enough demo slots, automatically increasing sv_democlients to %d and sv_maxclients to %d.\n", clients, sv_maxclients->integer + clients);
 
 		// save the old values of sv_maxclients, sv_democlients and bot_minplayers to later restore them
 		savedMaxClients = sv_maxclients->integer;
@@ -845,7 +845,7 @@ void SV_DemoStartPlayback(void)
 	r = MSG_ReadLong(&msg);
 	if (r < 400)
 	{
-		Com_Printf("Demo time too small: %d.\n", r);
+		Com_Printf("DEMO: Demo time too small: %d.\n", r);
 		SV_DemoStopPlayback();
 		return;
 	}
@@ -863,6 +863,9 @@ void SV_DemoStartPlayback(void)
 
 	// reading fs_game (mod name)
 	strcpy(fs, MSG_ReadString(&msg));
+	if (strlen(fs)){
+		Com_Printf("DEMO: Warning: this demo was recorded for the following mod: %s\n", fs);
+	}
 
 	// reading map (from the demo)
 	strcpy(map, MSG_ReadString(&msg));
@@ -873,7 +876,7 @@ void SV_DemoStartPlayback(void)
 		return;
 	}
 
-	Com_DPrintf("DGBO loadtest: fs:%s map:%s\n", fs, map);
+	Com_DPrintf("DEMODEBUG loadtest: fs:%s map:%s\n", fs, map);
 
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
@@ -894,6 +897,7 @@ void SV_DemoStartPlayback(void)
 		keepSaved = 1;
 
 		if ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) { // change the game mod only if necessary (because it will restart the game engine and so probably every client will get disconnected)
+			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", fs);
 			savedFsGame = Cvar_VariableString("fs_game");
 			Cbuf_AddText(va("game_restart %s\n", fs));
 		}
