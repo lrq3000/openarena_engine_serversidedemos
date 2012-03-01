@@ -1,15 +1,16 @@
 /*
 ===========================================================================
 Copyright (C) 2008 Amanieu d'Antras
+Copyright (C) 2012 Stephen Larroque
 
-This file is part of Tremulous.
+This file is part of OpenArena.
 
-Tremulous is free software; you can redistribute it
+OpenArena is free software; you can redistribute it
 and/or modify it under the terms of the GNU General Public License as
 published by the Free Software Foundation; either version 2 of the License,
 or (at your option) any later version.
 
-Tremulous is distributed in the hope that it will be
+OpenArena is distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
@@ -23,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // sv_demo.c -- Server side demo recording
 
 #include "server.h"
+
 
 /***********************************************
  * VARIABLES
@@ -40,7 +42,7 @@ typedef enum {
 	demo_clientUserinfo, // client userinfo event (client_t management)
 	demo_entityState, // gentity_t->entityState_t management
 	demo_entityShared, // gentity_t->entityShared_t management
-	demo_entityFields, // gentity_t fields management (that are not saved by the others demo_entity* events)
+	//demo_entityFields, // gentity_t fields management (that are not saved by the others demo_entity* events)
 	demo_playerState, // players game state event (playerState_t management)
 	demo_endDemo, // end of demo event (close the demo)
 	demo_EOF // end of file/flux event (end of event, separator, notify the demo parser to iterate to the next event of the _same_ frame)
@@ -320,6 +322,7 @@ SV_DemoWriteEntitiesFields
 Write an gentity_t (sv.gentities in the engine - level.gentities in the gamecode) fields that are not recorded in the other demo functions such as health and speed.
 ====================
 */
+/*
 void SV_DemoWriteEntitiesFields( int entityNum )
 {
 	msg_t msg;
@@ -343,6 +346,7 @@ void SV_DemoWriteEntitiesFields( int entityNum )
 	// Commit this demo event in the demo file
 	SV_DemoWriteMessage(&msg);
 }
+ */
 
 /*
 ====================
@@ -362,10 +366,13 @@ void SV_DemoWriteFrame(void)
 
 	MSG_Init(&msg, buf, sizeof(buf));
 
+	// Write entities fields
+	/*
 	for (i = 0; i < sv.num_entities; i++)
 	{
 		SV_DemoWriteEntitiesFields(i);
 	}
+	*/
 
 
 	// Write entities (gentity_t->entityState_t or concretely sv.gentities[num].s, in gamecode level. instead of sv.)
@@ -649,12 +656,14 @@ exit_loop:
 				MSG_ReadDeltaPlayerstate(&msg, &sv.demoPlayerStates[num], player);
 				sv.demoPlayerStates[num] = *player;
 				break;
+			/*
 			case demo_entityFields: // manage gentity_t fields (except the one that are managed by entityState - this event does not handle many fields yet)
 				num = MSG_ReadBits(&msg, GENTITYNUM_BITS);
 				entity = SV_GentityNum(num);
 				sv.demoEntities[num].health = MSG_ReadDelta(&msg, &sv.demoEntities[num].health, 16);
 				sv.demoEntities[num].speed = MSG_ReadDelta(&msg, &sv.demoEntities[num].speed, 16);
 				break;
+			*/
 			case demo_entityState: // manage gentity_t->entityState_t (some more gentities game status management, see demo_endFrame)
 				while (1)
 				{

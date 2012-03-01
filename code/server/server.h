@@ -400,6 +400,12 @@ qboolean SV_CheckConfigString( int cs_index, const char *cs_string );
 void SV_DemoFilterClientUserinfo( const char *userinfo );
 
 //
+// sv_demo_ext.c
+//
+
+void SV_GentityGetFieldSV_GentityGetField( intptr_t *args );
+
+//
 // sv_game.c
 //
 int	SV_NumForGentity( sharedEntity_t *ent );

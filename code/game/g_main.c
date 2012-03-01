@@ -1761,7 +1761,8 @@ int start, end;
 	//
 	start = trap_Milliseconds();
 	ent = &g_entities[0];
-	for (i=0 ; i<level.num_entities ; i++, ent++) {
+	//for (i=0 ; i<level.num_entities ; i++, ent++) {
+	for( i = 0; i < ( level.demoState == DS_PLAYBACK ? g_maxclients.integer : level.num_entities ); i++, ent++ ) { // optimization for CPU and memory when replaying a demo, but works without
 		if ( !ent->inuse ) {
 			continue;
 		}
