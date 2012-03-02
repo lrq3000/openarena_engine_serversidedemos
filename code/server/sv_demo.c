@@ -133,7 +133,9 @@ qboolean SV_CheckConfigString( int cs_index, const char *cs_string )
 {
 	if ( cs_index >= CS_PLAYERS && cs_index < CS_PLAYERS + sv_maxclients->integer ) { // if this is a player, we save the configstring as a clientconfigstring
 		SV_DemoWriteClientConfigString( cs_index - CS_PLAYERS, cs_string );
-		return qfalse; // we return false if the check wasn't right
+		return qfalse; // we return false if the check wasn't right (meaning that we stop the normal configstring processing since the clientconfigstring function will handle that)
+	} else if ( cs_index < 4 ) { // if the configstring index is below 4 (the motd), we don't save it (these are systems configstrings and will make an infinite loop for real clients at connection when the demo is played back, their management must be left to the system even at replaying)
+		return qfalse; // just drop this configstring
 	}
 	return qtrue; // else, the check is OK and we continue to process to save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
 }
