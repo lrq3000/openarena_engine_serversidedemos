@@ -523,6 +523,8 @@ exit_loop:
 						Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr)); // in fact, doing "team free" for any client will produce a curious effect: the client will always be put to the right team by the gamecode.
 						SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
 
+						VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // Normally, team switching force a ClientBegin to occur, but on some rare occasions it doesn't, so better issue it by ourselves to make sure
+
 					//} else if (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" ))) {
 						//SV_ExecuteClientCommand(&svs.clients[num], "team free", qtrue);
 					} else { // clientbegin needs only to be issued if the team wasn't changed (team changing already takes care of issuing a clientbegin)
