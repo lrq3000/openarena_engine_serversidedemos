@@ -726,8 +726,8 @@ void SV_DemoStartRecord(void)
 	// Write all the above into the demo file
 	SV_DemoWriteMessage(&msg);
 
-	// Write all configstrings (such as current capture score CS_SCORE1/2, etc...)
-	// Note: system configstrings will be filtered and excluded (there's a check function for that)
+	// Write all configstrings (such as current capture score CS_SCORE1/2, etc...), including clients configstrings
+	// Note: system configstrings will be filtered and excluded (there's a check function for that), and clients configstrings  will be automatically redirected to the specialized function (see the check function)
 	for (i = 0; i < MAX_CONFIGSTRINGS; i++)
 	{
 		if ( &sv.configstrings[i] ) { // if the configstring pointer exists in memory (because we will check all the possible indexes, but we don't know if they really exist in memory and are used or not, so here we check for that)
@@ -736,7 +736,7 @@ void SV_DemoStartRecord(void)
 		}
 	}
 
-	// Write initial clients userinfo and configstring
+	// Write initial clients userinfo
 	for (i = 0; i < sv_maxclients->integer; i++)
 	{
 		client_t *client = &svs.clients[i];
@@ -971,7 +971,7 @@ void SV_DemoStartPlayback(void)
 	for (i = sv_democlients->integer; i < sv_maxclients->integer; i++) {
 		//SV_ExecuteClientCommand(&svs.clients[i], "team spectator", qtrue);
 		//SV_SendServerCommand(&svs.clients[i], "forceteam %i spectator", i);
-		if (svs.clients[i].state >= CS_CONNECTED) { // Only set as spectator a player that as at least connected (or primed or active)
+		if (svs.clients[i].state >= CS_CONNECTED) { // Only set as spectator a player that is at least connected (or primed or active)
 			Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
 		}
 	}
@@ -1102,7 +1102,7 @@ SV_DemoAutoDemoRecord
 Generates a meaningful demo filename and automatically starts the demo recording.
 This function is used in conjunction with the variable sv_autoDemo 1
 Note: be careful, if the hostname contains bad characters, the demo may not be able to be saved at all! There's a small filtering in place but a bad filename may pass through!
-Note2: this function is called at MapRestart and SpawnServer, in now way it's called right at the time.
+Note2: this function is called at MapRestart and SpawnServer (called in Map func), but in no way it's called right at the time it's set.
 ====================
 */
 void SV_DemoAutoDemoRecord(void)
