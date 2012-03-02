@@ -725,13 +725,16 @@ void SV_DemoStartRecord(void)
 	SV_DemoWriteMessage(&msg);
 
 	// Write all configstrings (such as current capture score CS_SCORE1/2, etc...)
+	// Note: system configstrings will be filtered and excluded (there's a check function for that)
 	for (i = 0; i < MAX_CONFIGSTRINGS; i++)
 	{
-		if (&sv.configstrings[i] && i >= 4 && (i < CS_PLAYERS || i > CS_PLAYERS + sv_maxclients->integer)) // client configstrings are already recorded below, we don't want to record them again here - and we don't want to save the first 3 configstrings which are system set
+		if ( &sv.configstrings[i] ) { // if the configstring pointer exists in memory (because we will check all the possible indexes, but we don't know if they really exist in memory and are used or not, so here we check for that)
+		    //(i < CS_PLAYERS || i > CS_PLAYERS + sv_maxclients->integer) ) // client configstrings are already recorded below, we don't want to record them again here (because below we record client configstrings only if the client is connected to avoid errors)
 			SV_DemoWriteConfigString(i, sv.configstrings[i]);
+		}
 	}
 
-	// Write initial clients userinfo and configstrings
+	// Write initial clients userinfo and configstring
 	for (i = 0; i < sv_maxclients->integer; i++)
 	{
 		client_t *client = &svs.clients[i];
@@ -743,9 +746,11 @@ void SV_DemoStartRecord(void)
 				SV_DemoWriteClientUserinfo(client, (const char *)client->userinfo);
 			}
 			// store client's configstring
+			/*
 			if (&sv.configstrings[CS_PLAYERS + i]) { // if player is connected and the configstring exists, we store it
 				SV_DemoWriteClientConfigString(i, (const char *)sv.configstrings[CS_PLAYERS + i]);
 			}
+			*/
 		}
 	}
 
@@ -964,7 +969,9 @@ void SV_DemoStartPlayback(void)
 	for (i = sv_democlients->integer; i < sv_maxclients->integer; i++) {
 		//SV_ExecuteClientCommand(&svs.clients[i], "team spectator", qtrue);
 		//SV_SendServerCommand(&svs.clients[i], "forceteam %i spectator", i);
-		Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
+		if (svs.clients[i].state >= CS_CONNECTED) { // Only set as spectator a player that as at least connected (or primed or active)
+			Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
+		}
 	}
 
 	// Start reading the first frame
