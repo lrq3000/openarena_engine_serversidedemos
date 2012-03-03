@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "server.h"
 
+#define Q_IsColorStringGameCommand(p)      ((p) && *(p) == Q_COLOR_ESCAPE && *((p)+1)) // ^[anychar]
+
 /***********************************************
  * VARIABLES
  *
@@ -101,10 +103,34 @@ Check that the serverCommand is OK (or if we drop it because already handled som
 */
 qboolean SV_CheckServerCommand( const char *cmd )
 {
-	if ( !strncmp(cmd, "print", 5) || !strncmp(cmd, "cp", 2) ) { // If that's a print/cp command, it's already handled by gameCommand (here it's a redundancy). FIXME? possibly some print/cp are not handled by gameCommand? From my tests it was ok, but if someday a few prints are missing, try to delete this check...
+	if ( !strncmp(cmd, "print", 5) || !strncmp(cmd, "cp", 2) || !strncmp(cmd, "disconnect", 10) ) { // If that's a print/cp command, it's already handled by gameCommand (here it's a redundancy). FIXME? possibly some print/cp are not handled by gameCommand? From my tests it was ok, but if someday a few prints are missing, try to delete this check... For security, we also drop disconnect (even if it should not be recorded anyway in the first place), because server commands will be sent to every connected clients, and so it will disconnect everyone.
 		return qfalse; // we return false if the check wasn't right
 	}
 	return qtrue; // else, the check is OK and we continue to process with the original function
+}
+
+/*
+====================
+SV_CheckLastCmd
+
+Check and store the last command and compare it with the current one, to avoid duplicates.
+If onlyStore is true, it will only store the new cmd, without checking.
+====================
+*/
+qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore )
+{
+	static char prevcmddata[MAX_MSGLEN];
+	static char *prevcmd = prevcmddata;
+
+	if ( !onlyStore && // if we only want to store, we skip any checking
+	    strlen(prevcmd) > 0 && !strcmp(SV_CleanStrCmd((char *)prevcmd), SV_CleanStrCmd((char *)cmd)) ) { // check that the previous cmd was different from the current cmd.
+		Com_DPrintf("DGBOCheckLastCmd: prevcmd:%s\n", prevcmd);
+		Com_DPrintf("DGBOCheckLastCmd: cmd:%s\n", cmd);
+		return qfalse; // drop this command, it's a repetition of the previous one
+	} else {
+		Q_strncpyz(prevcmd, cmd, MAX_MSGLEN); // memorize the current cmd for the next check (clean the cmd before, because sometimes the same string is issued by the engine with some empty colors?)
+		return qtrue;
+	}
 }
 
 /*
@@ -116,18 +142,22 @@ Check that the gameCommand is OK (or if we drop it for privacy concerns and/or b
 */
 qboolean SV_CheckGameCommand( const char *cmd )
 {
-	if ( !strncmp(cmd, "chat", 4) || !strncmp(cmd, "tchat", 5) ) { // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that it itself fetch the name from client->name
-		return qfalse; // we return false if the check wasn't right
-	} else if ( !strncmp(cmd, "cs", 2) ) { // if it's a configstring command, we handle that with the specialized function
-		Cmd_SaveCmdContext();
-		Cmd_TokenizeString(cmd);
-		Com_DPrintf("DGBOGameCommand to ConfigString1: %s\n", cmd);
-		Com_DPrintf("DGBOGameCommand to ConfigString2: index:%i string:%s\n", atoi(Cmd_Argv(1)), Cmd_Argv(2));
-		SV_DemoWriteConfigString(atoi(Cmd_Argv(1)), Cmd_Argv(2)); // relay to the specialized write configstring function
-		Cmd_RestoreCmdContext();
-		return qfalse; // drop it with the processing of the game command
+	if ( !SV_CheckLastCmd( cmd, qfalse ) ) { // check that the previous cmd was different from the current cmd. The engine may send the same command to every client by their cid (one command per client) instead of just sending one command to all using NULL or -1.
+		return qfalse; // drop this command, it's a repetition of the previous one
+	} else {
+		if ( !strncmp(cmd, "chat", 4) || !strncmp(cmd, "tchat", 5) ) { // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that it itself fetch the name from client->name
+			return qfalse; // we return false if the check wasn't right
+		} else if ( !strncmp(cmd, "cs", 2) ) { // if it's a configstring command, we handle that with the specialized function
+			Cmd_SaveCmdContext();
+			Cmd_TokenizeString(cmd);
+			Com_DPrintf("DGBOGameCommand to ConfigString1: %s\n", cmd);
+			Com_DPrintf("DGBOGameCommand to ConfigString2: index:%i string:%s\n", atoi(Cmd_Argv(1)), Cmd_Argv(2));
+			SV_DemoWriteConfigString(atoi(Cmd_Argv(1)), Cmd_Argv(2)); // relay to the specialized write configstring function
+			Cmd_RestoreCmdContext();
+			return qfalse; // drop it with the processing of the game command
+		}
+		return qtrue; // else, the check is OK and we continue to process with the original function
 	}
-	return qtrue; // else, the check is OK and we continue to process with the original function
 }
 
 /*
@@ -221,6 +251,7 @@ void SV_DemoWriteClientCommand( client_t *client, const char *cmd )
 SV_DemoWriteServerCommand
 
 Write a server command to the demo file
+Note: we record only server commands that are meant to be sent to everyone in the first place, that's why we don't even bother to store the clientnum. For commands that were only intended to specifically one player, we only record them if they were game commands (see below the specialized function), else we do not because it may be unsafe (such as "disconnect" command)
 ====================
 */
 void SV_DemoWriteServerCommand( const char *cmd )
@@ -242,6 +273,7 @@ void SV_DemoWriteServerCommand( const char *cmd )
 SV_DemoWriteGameCommand
 
 Write a game command to the demo file
+Note: game commands are sent to server commands, but we record them separately because game commands are safe to be replayed to everyone (even if at recording time it was only intended to one player), while server commands may be unsafe if it was dedicated only to one player (such as "disconnect")
 ====================
 */
 void SV_DemoWriteGameCommand( int clientNum, const char *cmd )
@@ -617,15 +649,17 @@ exit_loop:
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
 				break;
-			case demo_gameCommand: // game command management - such as prints/centerprint (cp) scores command - except chat/tchat (handled by clientCommand) - basically the same as demo_serverCommand (because sv_GameSendServerCommand uses SV_SendServerCommand, so it's a bit redundant here, we can delete one of the two, preferably this one because the other is a more standard way and more commands pass through it)
+			case demo_gameCommand: // game command management - such as prints/centerprint (cp) scores command - except chat/tchat (handled by clientCommand) - basically the same as demo_serverCommand (because sv_GameSendServerCommand uses SV_SendServerCommand, but game commands are safe to be replayed to everyone, while server commands may be unsafe such as disconnect)
 				num = MSG_ReadByte(&msg);
 				Cmd_SaveCmdContext();
 				tmpmsg = MSG_ReadString(&msg);
 				Cmd_TokenizeString(tmpmsg);
 				if (strcmp(Cmd_Argv(0), "tinfo")) // too much spamming of tinfo (hud team overlay infos) - don't need those to debug
-					Com_DPrintf("DebugGBOgameCommand: %s \n", tmpmsg);
+					Com_DPrintf("DebugGBOgameCommand: %i %s \n", num, tmpmsg);
 				//VM_Call(gvm, GAME_DEMO_COMMAND, num);
-				SV_GameSendServerCommand( -1, tmpmsg );
+				if ( SV_CheckLastCmd( tmpmsg, qfalse ) ) { // check for duplicates: check that the engine did not already send this very same message resulting from an event (this means that engine gamecommands are never filtered, only demo gamecommands)
+					SV_GameSendServerCommand( -1, tmpmsg ); // send this game command to all clients (-1)
+				}
 				//SV_SendServerCommand(NULL, "%s \"%s\"", Cmd_Argv(0), Cmd_ArgsFrom(1)); // same as SV_GameSendServerCommand(-1, text);
 				//Com_DPrintf("DebugGBOgameCommand2: %i %s \"%s\"\n", num, Cmd_Argv(0), Cmd_ArgsFrom(1));
 				Cmd_RestoreCmdContext();
@@ -926,7 +960,7 @@ void SV_DemoStartPlayback(void)
 			}
 			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", savedFsGame); // Show savedFsGame instead of fs in the case fs is empty (it will print the default basegame mod)
 			Cbuf_AddText(va("game_restart %s\n", fs));
-			Cbuf_ExecuteText(EXEC_APPEND, va("set sv_democlients %i\nset sv_maxclients %i\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
+			//Cbuf_ExecuteText(EXEC_APPEND, va("set sv_democlients %i\nset sv_maxclients %i\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
 		}
 		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
@@ -1132,4 +1166,32 @@ void SV_DemoAutoDemoRecord(void)
 	Com_Printf("DEMO: recording a server-side demo to: %s/svdemos/%s.svdm_%d\n",  strlen(Cvar_VariableString("fs_game")) ?  Cvar_VariableString("fs_game") : BASEGAME, demoname, PROTOCOL_VERSION);
 
         Cbuf_AddText( va("demo_record %s", demoname ) );
+}
+
+/*
+====================
+SV_CleanStrCmd
+
+Same as Q_CleanStr but also remove any ^s or special empty color created by the engine in a gamecommand.
+====================
+*/
+char *SV_CleanStrCmd( char *string ) {
+	char*	d;
+	char*	s;
+	int		c;
+
+	s = string;
+	d = string;
+	while ((c = *s) != 0 ) {
+		if ( Q_IsColorStringGameCommand( s ) ) {
+			s++;
+		}
+		else if ( c >= 0x20 && c <= 0x7E ) {
+			*d++ = c;
+		}
+		s++;
+	}
+	*d = '\0';
+
+	return string;
 }
