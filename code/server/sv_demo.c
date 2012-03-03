@@ -118,6 +118,14 @@ qboolean SV_CheckGameCommand( const char *cmd )
 {
 	if ( !strncmp(cmd, "chat", 4) || !strncmp(cmd, "tchat", 5) ) { // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that it itself fetch the name from client->name
 		return qfalse; // we return false if the check wasn't right
+	} else if ( !strncmp(cmd, "cs", 2) ) { // if it's a configstring command, we handle that with the specialized function
+		Cmd_SaveCmdContext();
+		Cmd_TokenizeString(cmd);
+		Com_DPrintf("DGBOGameCommand to ConfigString1: %s\n", cmd);
+		Com_DPrintf("DGBOGameCommand to ConfigString2: index:%i string:%s\n", atoi(Cmd_Argv(1)), Cmd_Argv(2));
+		SV_DemoWriteConfigString(atoi(Cmd_Argv(1)), Cmd_Argv(2)); // relay to the specialized write configstring function
+		Cmd_RestoreCmdContext();
+		return qfalse; // drop it with the processing of the game command
 	}
 	return qtrue; // else, the check is OK and we continue to process with the original function
 }
@@ -918,6 +926,7 @@ void SV_DemoStartPlayback(void)
 			}
 			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", savedFsGame); // Show savedFsGame instead of fs in the case fs is empty (it will print the default basegame mod)
 			Cbuf_AddText(va("game_restart %s\n", fs));
+			Cbuf_ExecuteText(EXEC_APPEND, va("set sv_democlients %i\nset sv_maxclients %i\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
 		}
 		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
