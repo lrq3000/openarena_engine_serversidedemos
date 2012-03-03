@@ -61,7 +61,7 @@ static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int savedGametype = -1;
 static char savedFsGameVal[MAX_QPATH] = "";
-static char *savedFsGame = &savedFsGameVal;
+static char *savedFsGame = savedFsGameVal;
 static int keepSaved = 0; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched) or if we can restore them
 
 
@@ -303,7 +303,7 @@ cs_string = content of the configstring to set
 void SV_DemoWriteConfigString( int cs_index, const char *cs_string )
 {
 	msg_t msg;
-	char *cindex[MAX_CONFIGSTRINGS];
+	char cindex[MAX_CONFIGSTRINGS];
 
 	if ( !SV_CheckConfigString( cs_index, cs_string ) ) { // check that this function really needs to store the configstring (or if it's a client configstring we relay to the specialized function)
 		return;
@@ -1173,12 +1173,17 @@ void SV_DemoAutoDemoRecord(void)
 SV_CleanStrCmd
 
 Same as Q_CleanStr but also remove any ^s or special empty color created by the engine in a gamecommand.
+Note: also another difference is that it doesn't modify the input string in the processing, only returns the new one.
 ====================
 */
-char *SV_CleanStrCmd( char *string ) {
+char *SV_CleanStrCmd( char *str ) {
+	char*	string = malloc ( MAX_NAME_LENGTH * sizeof * string );
+
 	char*	d;
 	char*	s;
 	int		c;
+
+	Q_strncpyz(string, str, MAX_NAME_LENGTH);
 
 	s = string;
 	d = string;
