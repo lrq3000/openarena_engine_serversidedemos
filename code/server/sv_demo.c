@@ -1022,8 +1022,10 @@ void SV_DemoStartPlayback(void)
 	}
 
 	// Start reading the first frame
-	Com_Printf("Playing demo %s.\n", sv.demoName);
-	sv.demoState = DS_PLAYBACK;
+	Com_Printf("Playing demo %s.\n", sv.demoName); // log that the demo is started here
+	SV_SendServerCommand( NULL, "chat \"^3Demo replay started!\"" ); // send a message to player
+	SV_SendServerCommand( NULL, "cp \"^3Demo replay started!\"" ); // send a centerprint message to player
+	sv.demoState = DS_PLAYBACK; // set state to playback
 	Cvar_SetValue("sv_demoState", DS_PLAYBACK);
 	SV_DemoReadFrame(); // reading the first frame, which should contain some initialization events (eg: initial confistrings/userinfo when demo recording started, initial entities states and placement, etc..)
 }
