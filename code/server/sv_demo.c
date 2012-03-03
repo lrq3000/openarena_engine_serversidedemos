@@ -953,6 +953,8 @@ void SV_DemoStartPlayback(void)
 		savedGametype = sv_gametype->integer;
 		keepSaved = 1;
 
+		Cvar_SetValue("sv_autoDemo", 0); // disable sv_autoDemo else it will start a recording before we can replay a demo (since we restart the map)
+
 		if ( ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
 		    (!strlen(fs) && strcmp(Cvar_VariableString("fs_game"), fs) && strcmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
 			if (strlen(Cvar_VariableString("fs_game"))) { // if fs_game is not "", we save it
