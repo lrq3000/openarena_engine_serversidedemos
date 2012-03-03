@@ -401,7 +401,7 @@ qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore );
 void SV_DemoFilterClientUserinfo( const char *userinfo );
 void SV_DemoAutoDemoRecord(void);
 char *SV_CleanFilename( char *str );
-char *SV_CleanStrCmd( char *str );
+char *SV_CleanStrCmd( char *str, int MAXCONST );
 
 //
 // sv_game.c

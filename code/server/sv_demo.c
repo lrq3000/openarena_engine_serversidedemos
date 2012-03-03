@@ -119,16 +119,18 @@ If onlyStore is true, it will only store the new cmd, without checking.
 */
 qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore )
 {
-	static char prevcmddata[MAX_MSGLEN];
+	static char prevcmddata[MAX_STRING_CHARS];
 	static char *prevcmd = prevcmddata;
 
+	Com_DPrintf("DGBOCheckLastCmdTEST: cprevcmd:%s cnewcmd:%s\n", SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS));
+
 	if ( !onlyStore && // if we only want to store, we skip any checking
-	    strlen(prevcmd) > 0 && !strcmp(SV_CleanStrCmd((char *)prevcmd), SV_CleanStrCmd((char *)cmd)) ) { // check that the previous cmd was different from the current cmd.
+	    strlen(prevcmd) > 0 && !strcmp(SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS)) ) { // check that the previous cmd was different from the current cmd.
 		Com_DPrintf("DGBOCheckLastCmd: prevcmd:%s\n", prevcmd);
 		Com_DPrintf("DGBOCheckLastCmd: cmd:%s\n", cmd);
 		return qfalse; // drop this command, it's a repetition of the previous one
 	} else {
-		Q_strncpyz(prevcmd, cmd, MAX_MSGLEN); // memorize the current cmd for the next check (clean the cmd before, because sometimes the same string is issued by the engine with some empty colors?)
+		Q_strncpyz(prevcmd, cmd, MAX_STRING_CHARS); // memorize the current cmd for the next check (clean the cmd before, because sometimes the same string is issued by the engine with some empty colors?)
 		return qtrue;
 	}
 }
@@ -1176,14 +1178,14 @@ Same as Q_CleanStr but also remove any ^s or special empty color created by the 
 Note: also another difference is that it doesn't modify the input string in the processing, only returns the new one.
 ====================
 */
-char *SV_CleanStrCmd( char *str ) {
-	char*	string = malloc ( MAX_NAME_LENGTH * sizeof * string );
+char *SV_CleanStrCmd( char *str, int MAXCONST ) {
+	char*	string = malloc ( MAXCONST * sizeof * string );
 
 	char*	d;
 	char*	s;
 	int		c;
 
-	Q_strncpyz(string, str, MAX_NAME_LENGTH);
+	Q_strncpyz(string, str, MAXCONST);
 
 	s = string;
 	d = string;
