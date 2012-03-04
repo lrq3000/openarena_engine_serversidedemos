@@ -963,6 +963,7 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 	FILE			*temp;
 	int				l;
 	char demoExt[16];
+	char svdemoExt[16];
 
 	hash = 0;
 
@@ -1010,6 +1011,7 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 	}
 
 	Com_sprintf (demoExt, sizeof(demoExt), ".dm_%d",PROTOCOL_VERSION );
+	Com_sprintf (svdemoExt, sizeof(svdemoExt), ".svdm_%d",PROTOCOL_VERSION ); // Server-side demos
 	// qpaths are not supposed to have a leading slash
 	if ( filename[0] == '/' || filename[0] == '\\' ) {
 		filename++;
@@ -1131,7 +1133,9 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 					&& Q_stricmp( filename + l - 5, ".menu" )	// menu files
 					&& Q_stricmp( filename + l - 5, ".game" )	// menu files
 					&& Q_stricmp( filename + l - strlen(demoExt), demoExt )	// menu files
-					&& Q_stricmp( filename + l - 4, ".dat" ) ) {	// for journal files
+					&& Q_stricmp( filename + l - 4, ".dat" ) // for journal files
+					&& Q_stricmp( filename + l - strlen(svdemoExt), svdemoExt ) // server-side demos. FIXME: server-side demos replaying clientside: in the latest version of ioquake3, add in FS_FOpenFileReadDir(): !FS_IsExt(filename, svdemoExt, len) - do NOT use va(".svdm_%i", PROTOCOL_VERSION), use Com_sprintf instead or it will bug everything!
+					) {
 					continue;
 				}
 			}
