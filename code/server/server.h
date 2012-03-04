@@ -402,6 +402,7 @@ void SV_DemoFilterClientUserinfo( const char *userinfo );
 void SV_DemoAutoDemoRecord(void);
 char *SV_CleanFilename( char *str );
 char *SV_CleanStrCmd( char *str, int MAXCONST );
+char *SV_GenerateDateTime(void);
 
 //
 // sv_game.c

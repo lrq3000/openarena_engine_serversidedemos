@@ -755,7 +755,7 @@ void SV_DemoStartRecord(void)
 
 	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)
 	MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
-	// Write current time
+	// Write current server in-game time
 	MSG_WriteLong(&msg, sv.time);
 	// Write sv_fps
 	MSG_WriteLong(&msg, sv_fps->integer);
@@ -763,9 +763,19 @@ void SV_DemoStartRecord(void)
 	MSG_WriteLong(&msg, sv_gametype->integer);
 	// Write fs_game (mod name)
 	MSG_WriteString(&msg, Cvar_VariableString("fs_game"));
-	Com_DPrintf("DGBO savetest: fs:%s\n", Cvar_VariableString("fs_game"));
 	// Write map name
 	MSG_WriteString(&msg, sv_mapname->string);
+	// Write timelimit
+	MSG_WriteLong(&msg, Cvar_VariableIntegerValue("timelimit"));
+	// Write fraglimit
+	MSG_WriteLong(&msg, Cvar_VariableIntegerValue("fraglimit"));
+	// Write capturelimit
+	MSG_WriteLong(&msg, Cvar_VariableIntegerValue("capturelimit"));
+	// Write sv_hostname (only for info)
+	MSG_WriteString(&msg, sv_hostname->string);
+	// Write current datetime (only for info)
+	Com_DPrintf("DGBO datetime debugtest: %s", SV_GenerateDateTime());
+	MSG_WriteString(&msg, SV_GenerateDateTime());
 
 	// Write all the above into the demo file
 	SV_DemoWriteMessage(&msg);
@@ -845,10 +855,12 @@ Note for developers: this is basically a mirror of SV_DemoStartRecord() but the 
 void SV_DemoStartPlayback(void)
 {
 	msg_t msg;
-	int r, i, clients, fps, gametype;
+	int r, i, clients, fps, gametype, timelimit, fraglimit, capturelimit;
 	//int num; // FIXME: useless variables
 	char *map = malloc( MAX_QPATH * sizeof *map );
 	char *fs = malloc( MAX_QPATH * sizeof *fs );
+	char *hostname = malloc( MAX_NAME_LENGTH * sizeof *hostname );
+	char *datetime = malloc( 1024 * sizeof *datetime );
 
 	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
 		keepSaved--;
@@ -880,7 +892,7 @@ void SV_DemoStartPlayback(void)
 	}
 
 	// Check slots, time and map
-	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS);
+	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS); // number of democlients (sv_maxclients at the time of the recording)
 	if (sv_democlients->integer < clients) {
 		Com_Printf("DEMO: Not enough demo slots, automatically increasing sv_democlients to %d and sv_maxclients to %d.\n", clients, sv_maxclients->integer + clients);
 
@@ -934,6 +946,24 @@ void SV_DemoStartPlayback(void)
 	}
 
 	Com_DPrintf("DEMODEBUG loadtest: fs:%s map:%s\n", fs, map);
+
+	// reading timelimit
+	timelimit = MSG_ReadLong(&msg);
+
+	// reading timelimit
+	fraglimit = MSG_ReadLong(&msg);
+
+	// reading timelimit
+	capturelimit = MSG_ReadLong(&msg);
+
+	// Additional infos (not necessary to replay a demo)
+	// reading sv_hostname (additional info)
+	strcpy(hostname, MSG_ReadString(&msg));
+	// reading datetime
+	strcpy(datetime, MSG_ReadString(&msg));
+
+	// Printing infos about the demo
+	Com_Printf("DEMO: Details of %s recorded %s on server \"%s\": sv_fps: %i start_time: %i clients: %i fs_game: %s g_gametype: %i map: %s timelimit: %i fraglimit: %i capturelimit: %i \n", sv.demoName, datetime, hostname, fps, r, clients, fs, gametype, map, timelimit, fraglimit, capturelimit);
 
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
@@ -1159,7 +1189,7 @@ void SV_DemoAutoDemoRecord(void)
 	qtime_t now;
 	Com_RealTime( &now );
 
-	const char *demoname = va( "%s_%04d-%02d-%02d-%02d-%02d-%02d_%s\n",
+	const char *demoname = va( "%s_%04d-%02d-%02d-%02d-%02d-%02d_%s",
 			SV_CleanFilename(sv_hostname->string),
                         1900 + now.tm_year,
                         1 + now.tm_mon,
@@ -1171,7 +1201,7 @@ void SV_DemoAutoDemoRecord(void)
 
 	Com_Printf("DEMO: recording a server-side demo to: %s/svdemos/%s.svdm_%d\n",  strlen(Cvar_VariableString("fs_game")) ?  Cvar_VariableString("fs_game") : BASEGAME, demoname, PROTOCOL_VERSION);
 
-        Cbuf_AddText( va("demo_record %s", demoname ) );
+        Cbuf_AddText( va("demo_record %s\n", demoname ) );
 }
 
 /*
@@ -1205,4 +1235,35 @@ char *SV_CleanStrCmd( char *str, int MAXCONST ) {
 	*d = '\0';
 
 	return string;
+}
+
+/*
+====================
+SV_GenerateDateTime
+
+Generate a full datetime (local and utc) from now
+====================
+*/
+char *SV_GenerateDateTime(void)
+{
+	// Current local time
+	qtime_t now;
+	Com_RealTime( &now );
+
+	// UTC time
+	time_t  utcnow = time(NULL);
+	struct tm tnow = *gmtime(&utcnow);
+	char    buff[1024];
+
+	strftime( buff, sizeof buff, "timezone %Z (UTC timezone: %Y-%m-%d %H:%M:%S W%W)", &tnow );
+
+	// Return local time and utc time
+	return va( "%04d-%02d-%02d %02d:%02d:%02d %s",
+				1900 + now.tm_year,
+				1 + now.tm_mon,
+				now.tm_mday,
+				now.tm_hour,
+				now.tm_min,
+				now.tm_sec,
+				buff);
 }
