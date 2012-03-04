@@ -367,20 +367,20 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 
 /*
 ====================
-SV_DemoWriteFrame
+SV_DemoWriteAllEntityState
 
-Record all the entities (gentities fields) and players (player_t fields) at the end of every frame (this is the only write function to be called in every frame for sure)
-Will be called once per server's frame
-Called in the main server's loop SV_Frame() in sv_main.c
+Write all entities state (gentity_t->entityState_t)
+Note: this is called at every game's endFrame.
+Note2: Contrary to the other DemoWrite functions, this one writes all entities at once in one message, instead of one entity/command per message. This could be easily changed, but I'm not sure it would be beneficial for the CPU time and demo storage.
 ====================
 */
-void SV_DemoWriteFrame(void)
+void SV_DemoWriteAllEntityState(void)
 {
 	msg_t msg;
-	playerState_t *player;
 	sharedEntity_t *entity;
 	int i;
 
+	// Initiliaze msg
 	MSG_Init(&msg, buf, sizeof(buf));
 
 	// Write entities (gentity_t->entityState_t or concretely sv.gentities[num].s, in gamecode level. instead of sv.)
@@ -396,6 +396,28 @@ void SV_DemoWriteFrame(void)
 	}
 	MSG_WriteBits(&msg, ENTITYNUM_NONE, GENTITYNUM_BITS); // End marker/Condition to break: since we don't know prior how many entities we store, when reading  the demo we will use an empty entity to break from our while loop
 
+	// Commit all these datas to the demo file
+	SV_DemoWriteMessage(&msg);
+}
+
+/*
+====================
+SV_DemoWriteAllEntityShared
+
+Write all entities (gentity_t->entityShared_t)
+Note: this is called at every game's endFrame.
+Note2: Contrary to the other DemoWrite functions, this one writes all entities at once in one message, instead of one entity/command per message.
+====================
+*/
+void SV_DemoWriteAllEntityShared(void)
+{
+	msg_t msg;
+	sharedEntity_t *entity;
+	int i;
+
+	// Initiliaze msg
+	MSG_Init(&msg, buf, sizeof(buf));
+
 	// Write entities (gentity_t->entityShared_t or concretely sv.gentities[num].r, in gamecode level. instead of sv.)
 	MSG_WriteByte(&msg, demo_entityShared);
 	for (i = 0; i < sv.num_entities; i++)
@@ -407,7 +429,28 @@ void SV_DemoWriteFrame(void)
 		sv.demoEntities[i].r = entity->r;
 	}
 	MSG_WriteBits(&msg, ENTITYNUM_NONE, GENTITYNUM_BITS); // End marker/Condition to break: since we don't know prior how many entities we store, when reading  the demo we will use an empty entity to break from our while loop
-	//SV_DemoWriteMessage(&msg); // TOFIX: useless? This will write twice the necessary amount of data, since we already write the whole message below!
+
+	// Commit all these datas to the demo file
+	SV_DemoWriteMessage(&msg);
+}
+
+/*
+====================
+SV_DemoWriteAllEntityShared
+
+Write all active clients playerState (playerState_t)
+Note: this is called at every game's endFrame.
+Note2: Contrary to the other DemoWrite functions, this one writes all entities at once in one message, instead of one entity/command per message.
+====================
+*/
+void SV_DemoWriteAllPlayerState(void)
+{
+	msg_t msg;
+	playerState_t *player;
+	int i;
+
+	// Initiliaze msg
+	MSG_Init(&msg, buf, sizeof(buf));
 
 	// Write clients playerState (playerState_t)
 	for (i = 0; i < sv_maxclients->integer; i++)
@@ -421,13 +464,47 @@ void SV_DemoWriteFrame(void)
 		sv.demoPlayerStates[i] = *player;
 	}
 
+	// Commit all these datas to the demo file
+	SV_DemoWriteMessage(&msg);
+}
+
+/*
+====================
+SV_DemoWriteFrame
+
+Record all the entities (gentities fields) and players (player_t fields) at the end of every frame (this is the only write function to be called in every frame for sure)
+Will be called once per server's frame
+Called in the main server's loop SV_Frame() in sv_main.c
+====================
+*/
+void SV_DemoWriteFrame(void)
+{
+	msg_t msg;
+
+	// STEP1: write all entities states at the end of the frame
+
+	// Write entities (gentity_t->entityState_t or concretely sv.gentities[num].s, in gamecode level. instead of sv.)
+	SV_DemoWriteAllEntityState();
+
+	// Write entities (gentity_t->entityShared_t or concretely sv.gentities[num].r, in gamecode level. instead of sv.)
+	SV_DemoWriteAllEntityShared();
+
+	// Write clients playerState (playerState_t)
+	SV_DemoWriteAllPlayerState();
+
+	//-----------------------------------------------------
+
+	// STEP2: write the endFrame marker and server time
+
+	MSG_Init(&msg, buf, sizeof(buf));
+
 	// Write end of frame marker: this will commit every demo entity change (and it's done at the very end of every server frame to overwrite any change the gamecode/engine may have done)
 	MSG_WriteByte(&msg, demo_endFrame);
 
 	// Write server time (will overwrite the server time every end of frame)
 	MSG_WriteLong(&msg, sv.time);
 
-	// Commit all these datas to the demo file
+	// Commit data to the demo file
 	SV_DemoWriteMessage(&msg);
 }
 
