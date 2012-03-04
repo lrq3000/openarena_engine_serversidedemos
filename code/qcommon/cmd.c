@@ -544,6 +544,8 @@ static cmdContext_t		savedCmd;
 /*
 ============
 Cmd_SaveCmdContext
+
+Save the tokenized strings and cmd so that later we can restore them and the engine will continue its usual processing normally
 ============
 */
 void Cmd_SaveCmdContext( void )
@@ -554,6 +556,8 @@ void Cmd_SaveCmdContext( void )
 /*
 ============
 Cmd_RestoreCmdContext
+
+Restore the tokenized strings and cmd saved previously so that the engine can continue its usual processing
 ============
 */
 void Cmd_RestoreCmdContext( void )
