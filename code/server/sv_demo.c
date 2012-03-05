@@ -58,7 +58,6 @@ static byte buf[0x400000];
 
 // Save maxclients and democlients and restore them after the demo
 static int savedMaxClients = -1;
-static int savedDemoClients = -1;
 static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int savedGametype = -1;
@@ -1266,7 +1265,6 @@ void SV_DemoStartPlayback(void)
 
 		// save the old values of sv_maxclients, sv_democlients and bot_minplayers to later restore them
 		savedMaxClients = sv_maxclients->integer;
-		savedDemoClients = sv_democlients->integer;
 		savedBotMinPlayers = Cvar_VariableIntegerValue("bot_minplayers");
 		keepSaved = 1;
 
@@ -1472,14 +1470,14 @@ void SV_DemoStopPlayback(void)
 	if (keepSaved == 0) {
 		Com_DPrintf("DEMODEBUG reloadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 
-		if (savedMaxClients >= 0 && savedDemoClients >= 0) {
+		Cvar_SetValue("sv_democlients", 0);
+
+		if (savedMaxClients >= 0) {
 			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
 			Cvar_Get( "sv_maxclients", "8", 0 );
 			sv_maxclients->modified = qfalse;
-			Cvar_SetValue("sv_democlients", savedDemoClients);
 
 			savedMaxClients = -1;
-			savedDemoClients = -1;
 		}
 
 		if (savedBotMinPlayers >= 0)
@@ -1512,10 +1510,11 @@ void SV_DemoStopPlayback(void)
 #endif
 	} else if (olddemostate == DS_PLAYBACK) {
 #ifdef DEDICATED
-		Com_Printf("DEMO: end of demo\n");
-		//Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
+		//Com_Printf("DEMO: end of demo\n");
+		Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
 #else
-		Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
+		Com_Printf("DEMO: end of demo\n");
+		//Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
 #endif
 	}
 
