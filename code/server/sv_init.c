@@ -337,7 +337,7 @@ void SV_ChangeMaxClients( void ) {
                 Cvar_SetValueLatched( "sv_maxclients", sv_democlients->integer + count );
         }
 	sv_maxclients->modified = qfalse;
-	sv_democlients->modified = qfalse;
+	//sv_democlients->modified = qfalse;
         // if still the same
         if ( !firstTime && sv_maxclients->integer == oldMaxClients ) {
                 // move people who are below sv_democlients up
@@ -468,7 +468,7 @@ void SV_SpawnServer( char *server, qboolean killBots ) {
 		SV_Startup();
 	} else {
 		// check for maxclients or democlients change
-		if ( sv_maxclients->modified || sv_democlients->modified ) {
+		if ( sv_maxclients->modified ) {
 			SV_ChangeMaxClients();
 		}
 	}
@@ -727,8 +727,9 @@ void SV_Init (void)
 
 	// serverside demo recording variables
 	sv_demoState = Cvar_Get ("sv_demoState", "0", CVAR_ROM );
-	sv_democlients = Cvar_Get ("sv_democlients", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ARCHIVE );
+	sv_democlients = Cvar_Get ("sv_democlients", "0", CVAR_ROM );
 	sv_autoDemo = Cvar_Get ("sv_autoDemo", "0", CVAR_ARCHIVE );
+	cl_freezeDemo = Cvar_Get("cl_freezeDemo", "0", CVAR_TEMP); // port from client-side to freeze server-side demos
 
 	// initialize bot cvars so they are listed and can be set before loading the botlib
 	SV_BotInitCvars();

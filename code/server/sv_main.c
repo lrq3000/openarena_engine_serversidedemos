@@ -65,6 +65,7 @@ cvar_t  *sv_flatline;			// If the master server supports it we can send a flatli
 					// when server is killed
 cvar_t	*sv_demoState;
 cvar_t	*sv_autoDemo;
+cvar_t	*cl_freezeDemo; // to freeze server-side demos
 
 serverBan_t serverBans[SERVER_MAXBANS];
 int serverBansCount = 0;

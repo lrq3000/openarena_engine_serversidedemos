@@ -960,9 +960,17 @@ void SV_DemoReadFrame(void)
 	msg_t msg;
 	int cmd, r;
 
+	static int memsvtime;
 	static int currentframe = -1;
 
 read_next_demo_frame: // used to read another whole demo frame
+
+	// Demo freezed? Just stop reading the demo frames
+	if (Cvar_VariableIntegerValue("cl_freezeDemo")) {
+		sv.time = memsvtime; // reset server time to the same time as the previous frame, to avoid the time going backward when resuming the demo (which will disconnect every players)
+		return;
+	}
+
 	// Update timescale
 	currentframe++; // update the current frame number
 
@@ -1040,6 +1048,7 @@ read_next_demo_event: // used to read next demo event
 				SV_DemoReadRefreshEntities(); // load into memory the demo entities (overwriting any change the game may have done)
 				// Set the server time
 				sv.time = MSG_ReadLong(&msg); // refresh server in-game time (overwriting any change the game may have done)
+				memsvtime = sv.time; // keep memory of the last server time, in case we want to freeze the demo
 
 				if (com_timescale->value > 1.0) { // Check for timescale: if timescale is faster (above 1.0), we read more frames at once (eg: timescale=2, we read 2 frames for one call of this function)
 					if (currentframe % (int)(com_timescale->value) != 0) { // Check that we've read all the frames we needed
@@ -1108,7 +1117,7 @@ void SV_DemoStartRecord(void)
 	int i;
 
 	// Set democlients to 0 since it's only used for replaying demo
-	Cvar_SetValueLatched("sv_democlients", 0);
+	Cvar_SetValue("sv_democlients", 0);
 
 	MSG_Init(&msg, buf, sizeof(buf));
 
@@ -1262,8 +1271,10 @@ void SV_DemoStartPlayback(void)
 		keepSaved = 1;
 
 		// automatically adjusting sv_democlients, sv_maxclients and bot_minplayers
-		Cvar_SetValueLatched("sv_democlients", clients);
+		Cvar_SetValue("sv_democlients", clients);
 		Cvar_SetValueLatched("sv_maxclients", sv_maxclients->integer + clients);
+		Cvar_Get( "sv_maxclients", "8", 0 );
+		sv_maxclients->modified = qfalse;
 		Cvar_SetValue("bot_minplayers", 0); // if we have bots that autoconnect, this will make up for a very weird demo!
 		//SV_DemoStopPlayback();
 		//return;
@@ -1324,20 +1335,23 @@ void SV_DemoStartPlayback(void)
 	// Printing infos about the demo
 	Com_Printf("DEMO: Details of %s recorded %s on server \"%s\": sv_fps: %i start_time: %i clients: %i fs_game: %s g_gametype: %i map: %s timelimit: %i fraglimit: %i capturelimit: %i \n", sv.demoName, datetime, hostname, fps, r, clients, fs, gametype, map, timelimit, fraglimit, capturelimit);
 
-
+	Com_Printf("DGBO CLIENTSDEBUG1\n");
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
 	// FIXME? why sv_cheats is needed?
 	if ( !com_sv_running->integer || strcmp(sv_mapname->string, map) ||
 	    strcmp(Cvar_VariableString("fs_game"), fs) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") || r < sv.time ||
-	    sv_maxclients->modified || sv_democlients->modified ||
+	    sv_maxclients->modified ||
 	    sv_gametype->integer != gametype )
 	{
+		Com_Printf("DGBO CLIENTSDEBUG2\n");
 		/// Change to the right map and start the demo with a hardcoded 10 seconds delay
 		// FIXME: this should not be a hardcoded value, there should be a way to ensure that the map fully restarted before continuing. And this can NOT be based on warmup, because if warmup is set to 0 (disabled), then you'll have no delay, and a delay is necessary! If the demo starts replaying before the map is restarted, it will simply do nothing.
 		// delay command is here used as a workaround for waiting until the map is fully restarted
 
+		Cvar_SetValue("sv_democlients", clients); // necessary to stop the playback, else it will produce an error since the demo has not yet started!
 		SV_DemoStopPlayback();
+		Com_Printf("DGBO CLIENTSDEBUG3\n");
 
 		savedGametype = sv_gametype->integer;
 		keepSaved = 1;
@@ -1346,11 +1360,13 @@ void SV_DemoStartPlayback(void)
 
 		if ( ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
 		    (!strlen(fs) && strcmp(Cvar_VariableString("fs_game"), fs) && strcmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
+			Com_Printf("DGBO CLIENTSDEBUG4\n");
 			if (strlen(Cvar_VariableString("fs_game"))) { // if fs_game is not "", we save it
 				Q_strncpyz(savedFsGame, (const char*)Cvar_VariableString("fs_game"), MAX_QPATH);
 			} else { // else, it's equal to "", and this means that we were playing in the basegame mod
 				Q_strncpyz(savedFsGame, BASEGAME, MAX_QPATH);
 			}
+			Com_Printf("DGBO CLIENTSDEBUG5\n");
 			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", strlen(fs) ? fs : BASEGAME);
 			Cbuf_AddText(va("game_restart %s\n", fs));
 			//Cbuf_ExecuteText(EXEC_APPEND, va("delay 8000 \"set sv_democlients %i;set sv_maxclients %i\"\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
@@ -1364,12 +1380,18 @@ void SV_DemoStartPlayback(void)
 
 		return;
 	}
+	Com_Printf("DGBO CLIENTSDEBUGLAST\n");
 
 
 	// Initialize our stuff
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
 	Com_Memset(sv.demoPlayerStates, 0, sizeof(sv.demoPlayerStates));
 	Cvar_SetValue("sv_democlients", clients);
+	/*
+	Cvar_SetValueLatched("sv_maxclients", sv_maxclients->integer + clients);
+	Cvar_Get( "sv_maxclients", "8", 0 );
+	sv_maxclients->modified = qfalse;
+	*/
 
 	// Init democlients configstrings to NULL (and set them as democlients)
 	/*
@@ -1434,8 +1456,11 @@ void SV_DemoStopPlayback(void)
 	olddemostate = sv.demoState;
 	// Clear client configstrings
 	int i;
-	for (i = 0; i < sv_democlients->integer; i++)
-		SV_SetConfigstring(CS_PLAYERS + i, NULL); //qtrue
+
+	if (olddemostate == DS_PLAYBACK) { // unload democlients only if we were replaying a demo (if not it will produce an error!)
+		for (i = 0; i < sv_democlients->integer; i++)
+			SV_SetConfigstring(CS_PLAYERS + i, NULL); //qtrue
+	}
 
 	FS_FCloseFile(sv.demoFile);
 	sv.demoState = DS_NONE;
@@ -1449,7 +1474,9 @@ void SV_DemoStopPlayback(void)
 
 		if (savedMaxClients >= 0 && savedDemoClients >= 0) {
 			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
-			Cvar_SetValueLatched("sv_democlients", savedDemoClients);
+			Cvar_Get( "sv_maxclients", "8", 0 );
+			sv_maxclients->modified = qfalse;
+			Cvar_SetValue("sv_democlients", savedDemoClients);
 
 			savedMaxClients = -1;
 			savedDemoClients = -1;
@@ -1485,7 +1512,8 @@ void SV_DemoStopPlayback(void)
 #endif
 	} else if (olddemostate == DS_PLAYBACK) {
 #ifdef DEDICATED
-		Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
+		Com_Printf("DEMO: end of demo\n");
+		//Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
 #else
 		Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
 #endif
