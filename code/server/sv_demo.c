@@ -1351,9 +1351,9 @@ void SV_DemoStartPlayback(void)
 			} else { // else, it's equal to "", and this means that we were playing in the basegame mod
 				Q_strncpyz(savedFsGame, BASEGAME, MAX_QPATH);
 			}
-			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", savedFsGame); // Show savedFsGame instead of fs in the case fs is empty (it will print the default basegame mod)
+			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", strlen(fs) ? fs : BASEGAME);
 			Cbuf_AddText(va("game_restart %s\n", fs));
-			//Cbuf_ExecuteText(EXEC_APPEND, va("set sv_democlients %i\nset sv_maxclients %i\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
+			//Cbuf_ExecuteText(EXEC_APPEND, va("delay 8000 \"set sv_democlients %i;set sv_maxclients %i\"\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
 		}
 		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
