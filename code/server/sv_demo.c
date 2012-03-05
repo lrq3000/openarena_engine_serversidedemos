@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define Q_IsColorStringGameCommand(p)      ((p) && *(p) == Q_COLOR_ESCAPE && *((p)+1)) // ^[anychar]
 
+#define CEIL(VARIABLE) ( (VARIABLE - (int)VARIABLE)==0 ? (int)VARIABLE : (int)VARIABLE+1 )
+
 /***********************************************
  * VARIABLES
  *
@@ -958,11 +960,25 @@ void SV_DemoReadFrame(void)
 	msg_t msg;
 	int cmd, r;
 
+	static int currentframe = -1;
+
+read_next_demo_frame: // used to read another whole demo frame
+	// Update timescale
+	currentframe++; // update the current frame number
+
+	if (com_timescale->value < 1.0) { // Check timescale: if slowed timescale (below 1.0), then we check that we pass one frame on 1.0/com_timescale (eg: timescale = 0.5, 1.0/0.5=2, so we pass one frame on two)
+		if (currentframe % (int)(1.0/com_timescale->value) == 0) { // if it's not yet the right time to read the frame, we just pass and wait for the next server frame to read this demo frame
+			return;
+		}
+	}
+
+	// Initialize / reinitialize the msg buffer
 	MSG_Init(&msg, buf, sizeof(buf));
 
 	while (1)
 	{
-exit_loop:
+read_next_demo_event: // used to read next demo event
+
 		// Get a message
 		r = FS_Read(&msg.cursize, 4, sv.demoFile);
 		if (r != 4)
@@ -992,7 +1008,7 @@ exit_loop:
 				return;
 			case demo_EOF: // end of a demo event (the loop will continue to real the next event)
 				MSG_Clear(&msg);
-				goto exit_loop;
+				goto read_next_demo_event;
 			case demo_configString: // general configstrings setting (such as capture scores CS_SCORES1/2, etc.) - except clients configstrings
 				SV_DemoReadConfigString( &msg );
 				break;
@@ -1024,7 +1040,14 @@ exit_loop:
 				SV_DemoReadRefreshEntities(); // load into memory the demo entities (overwriting any change the game may have done)
 				// Set the server time
 				sv.time = MSG_ReadLong(&msg); // refresh server in-game time (overwriting any change the game may have done)
-				return;
+
+				if (com_timescale->value > 1.0) { // Check for timescale: if timescale is faster (above 1.0), we read more frames at once (eg: timescale=2, we read 2 frames for one call of this function)
+					if (currentframe % (int)(com_timescale->value) != 0) { // Check that we've read all the frames we needed
+						goto read_next_demo_frame; // if not true, we read another frame
+					}
+				}
+
+				return; // else we end the current demo frame
 			case demo_endDemo: // end of the demo file - just stop playback and restore saved cvars
 				SV_DemoStopPlayback();
 				return;
