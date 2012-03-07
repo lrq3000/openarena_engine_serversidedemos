@@ -1229,10 +1229,6 @@ void SV_DemoStartPlayback(void)
 	char *hostname = malloc( MAX_NAME_LENGTH * sizeof *hostname );
 	char *datetime = malloc( 1024 * sizeof *datetime );
 
-	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
-		keepSaved--;
-	}
-
 	MSG_Init(&msg, buf, sizeof(buf));
 
 	// Get the demo header
@@ -1260,20 +1256,20 @@ void SV_DemoStartPlayback(void)
 
 	// Check slots, time and map
 	clients = MSG_ReadBits(&msg, CLIENTNUM_BITS); // number of democlients (sv_maxclients at the time of the recording)
-	if (sv_democlients->integer < clients) {
+	if (sv_maxclients->integer < clients || savedMaxClients < 0 || sv_maxclients->integer <= savedMaxClients) {
 		Com_Printf("DEMO: Not enough demo slots, automatically increasing sv_democlients to %d and sv_maxclients to %d.\n", clients, sv_maxclients->integer + clients);
 
 		// save the old values of sv_maxclients, sv_democlients and bot_minplayers to later restore them
 		savedMaxClients = sv_maxclients->integer;
 		savedBotMinPlayers = Cvar_VariableIntegerValue("bot_minplayers");
-		keepSaved = 1;
 
 		// automatically adjusting sv_democlients, sv_maxclients and bot_minplayers
 		Cvar_SetValue("sv_democlients", clients);
 		Cvar_SetValueLatched("sv_maxclients", sv_maxclients->integer + clients);
+		/* BUGGY makes a dedicated server crash
 		Cvar_Get( "sv_maxclients", "8", 0 );
 		sv_maxclients->modified = qfalse;
-		Cvar_SetValue("bot_minplayers", 0); // if we have bots that autoconnect, this will make up for a very weird demo!
+		*/
 		//SV_DemoStopPlayback();
 		//return;
 	}
@@ -1291,7 +1287,6 @@ void SV_DemoStartPlayback(void)
 	fps = MSG_ReadLong(&msg);
 	if ( sv_fps->integer != fps ) {
 		savedFPS = sv_fps->integer;
-		keepSaved = 1;
 		Cvar_SetValue("sv_fps", fps);
 	}
 
@@ -1347,12 +1342,12 @@ void SV_DemoStartPlayback(void)
 		// FIXME: this should not be a hardcoded value, there should be a way to ensure that the map fully restarted before continuing. And this can NOT be based on warmup, because if warmup is set to 0 (disabled), then you'll have no delay, and a delay is necessary! If the demo starts replaying before the map is restarted, it will simply do nothing.
 		// delay command is here used as a workaround for waiting until the map is fully restarted
 
-		Cvar_SetValue("sv_democlients", clients); // necessary to stop the playback, else it will produce an error since the demo has not yet started!
+		//Cvar_SetValue("sv_democlients", 0); // necessary to stop the playback, else it will produce an error since the demo has not yet started!
+		keepSaved = 2;
 		SV_DemoStopPlayback();
 		Com_Printf("DGBO CLIENTSDEBUG3\n");
 
 		savedGametype = sv_gametype->integer;
-		keepSaved = 1;
 
 		Cvar_SetValue("sv_autoDemo", 0); // disable sv_autoDemo else it will start a recording before we can replay a demo (since we restart the map)
 
@@ -1384,7 +1379,9 @@ void SV_DemoStartPlayback(void)
 	// Initialize our stuff
 	Com_Memset(sv.demoEntities, 0, sizeof(sv.demoEntities));
 	Com_Memset(sv.demoPlayerStates, 0, sizeof(sv.demoPlayerStates));
-	Cvar_SetValue("sv_democlients", clients);
+	Cvar_SetValue("sv_democlients", clients); // Note: we need SV_Startup() to NOT use SV_ChangeMaxClients for this to work without crashing when changing fs_game
+	Cvar_SetValue("bot_minplayers", 0); // if we have bots that autoconnect, this will make up for a very weird demo!
+
 	/*
 	Cvar_SetValueLatched("sv_maxclients", sv_maxclients->integer + clients);
 	Cvar_Get( "sv_maxclients", "8", 0 );
@@ -1455,6 +1452,10 @@ void SV_DemoStopPlayback(void)
 	// Clear client configstrings
 	int i;
 
+	if (keepSaved > 0) { // restore keepSaved to 0 (because this is the second time we launch this function, so now there's no need to keep the cvars further)
+		keepSaved--;
+	}
+
 	if (olddemostate == DS_PLAYBACK) { // unload democlients only if we were replaying a demo (if not it will produce an error!)
 		for (i = 0; i < sv_democlients->integer; i++)
 			SV_SetConfigstring(CS_PLAYERS + i, NULL); //qtrue
@@ -1463,19 +1464,21 @@ void SV_DemoStopPlayback(void)
 	FS_FCloseFile(sv.demoFile);
 	sv.demoState = DS_NONE;
 	Cvar_SetValue("sv_demoState", DS_NONE);
-	Com_Printf("Stopped playing demo %s.\n", sv.demoName);
+	Com_Printf("DEMO: End of demo. Stopped playing demo %s.\n", sv.demoName);
 
 	// restore maxclients and democlients
 	// Note: must do it before the map_restart! so that it takes effect (because it's latched)
-	if (keepSaved == 0) {
+	if (keepSaved <= 0) {
 		Com_DPrintf("DEMODEBUG reloadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
-
-		Cvar_SetValue("sv_democlients", 0);
+		keepSaved = 0;
 
 		if (savedMaxClients >= 0) {
 			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
+			/*
 			Cvar_Get( "sv_maxclients", "8", 0 );
 			sv_maxclients->modified = qfalse;
+			*/
+			Cvar_SetValue("sv_democlients", 0);
 
 			savedMaxClients = -1;
 		}
@@ -1488,20 +1491,21 @@ void SV_DemoStopPlayback(void)
 			Cvar_SetValue("sv_fps", savedFPS);
 			savedFPS = -1;
 
-		if (strlen(savedFsGame))
-			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
-			Q_strncpyz(savedFsGame, "", MAX_QPATH);
-
 		if (savedGametype > 0)
 			Cvar_SetValueLatched("g_gametype", savedGametype);
 			savedGametype = -1;
+
+		if (strlen(savedFsGame))
+			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
+			Q_strncpyz(savedFsGame, "", MAX_QPATH);
 
 		Com_DPrintf("DEMODEBUG reloadtestsaved2: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG reloadtestsaved3: Fs_Game:%s Gametype:%i\n", Cvar_VariableString("fs_game"), sv_gametype->integer);
 	}
 
+	// LAST RELOAD (to reinit all vars)
 	// demo hasn't actually started yet
-	if (olddemostate == DS_NONE && keepSaved == 0) {
+	if (olddemostate == DS_NONE && keepSaved <= 0) {
 #ifdef DEDICATED
 		//Cbuf_AddText("map_restart 0\n");
 #else
@@ -1510,11 +1514,9 @@ void SV_DemoStopPlayback(void)
 #endif
 	} else if (olddemostate == DS_PLAYBACK) {
 #ifdef DEDICATED
-		//Com_Printf("DEMO: end of demo\n");
 		Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
 #else
-		Com_Printf("DEMO: end of demo\n");
-		//Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
+		Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
 #endif
 	}
 

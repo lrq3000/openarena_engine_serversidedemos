@@ -286,9 +286,15 @@ static void SV_Startup( void ) {
 	if ( svs.initialized ) {
 		Com_Error( ERR_FATAL, "SV_Startup: svs.initialized" );
 	}
+	SV_BoundMaxClients( 1 );
 
-	SV_ChangeMaxClients();
-
+	svs.clients = Z_Malloc (sizeof(client_t) * sv_maxclients->integer );
+	if ( com_dedicated->integer ) {
+		svs.numSnapshotEntities = sv_maxclients->integer * PACKET_BACKUP * 64;
+	} else {
+		// we don't need nearly as many when playing locally
+		svs.numSnapshotEntities = sv_maxclients->integer * 4 * 64;
+	}
 	svs.initialized = qtrue;
 
 	// Don't respect sv_killserver unless a server is actually running
