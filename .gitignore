@@ -1,4 +1,1 @@
-build
-Makefile.local
-*.swp
-*tags
+/build/
