@@ -1291,6 +1291,7 @@ typedef enum _flag_status {
 typedef enum {
 	DS_NONE,
 
+	DS_WAITINGPLAYBACK,
 	DS_PLAYBACK,
 	DS_RECORDING,
 

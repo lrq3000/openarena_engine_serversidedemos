@@ -387,6 +387,7 @@ void SV_DemoStopRecord(void);
 void SV_DemoStartPlayback(void);
 void SV_DemoStopPlayback(void);
 void SV_DemoAutoDemoRecord(void);
+void SV_DemoRestartPlayback(void);
 
 void SV_DemoReadFrame(void);
 void SV_DemoReadClientCommand( msg_t *msg );

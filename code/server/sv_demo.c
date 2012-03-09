@@ -61,8 +61,13 @@ static int savedMaxClients = -1;
 static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int savedGametype = -1;
+
 static char savedFsGameVal[MAX_QPATH] = "";
 static char *savedFsGame = savedFsGameVal;
+
+static char savedPlaybackDemonameVal[MAX_QPATH] = "";
+static char *savedPlaybackDemoname = savedPlaybackDemonameVal;
+
 static qboolean keepSaved = qfalse; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched, we need to stop the playback meanwhile we restart, and using this var we can know if the stop is a restart procedure or a real demo end) or if we can restore them (at the end of the demo)
 
 
@@ -1209,6 +1214,13 @@ void SV_DemoStopRecord(void)
 	Com_Printf("Stopped recording demo %s.\n", sv.demoName);
 }
 
+void SV_DemoRestartPlayback(void)
+{
+	if ( strlen(savedPlaybackDemoname) )
+		Cbuf_AddText( va("%s\n", savedPlaybackDemoname ) );
+	return;
+}
+
 /*
 ====================
 SV_DemoStartPlayback
@@ -1349,6 +1361,9 @@ void SV_DemoStartPlayback(void)
 		//Cvar_SetValue("sv_democlients", 0); // necessary to stop the playback, else it will produce an error since the demo has not yet started!
 		keepSaved = qtrue;
 		SV_DemoStopPlayback();
+		sv.demoState = DS_WAITINGPLAYBACK;
+		Cvar_SetValue("sv_demoState", DS_WAITINGPLAYBACK);
+		Q_strncpyz(savedPlaybackDemoname, Cmd_Cmd(), MAX_QPATH); // we need to copy the value because since we may spawn a new server (if the demo is played client-side OR if we change fs_game), we will lose all sv. vars
 		Com_Printf("DGBO CLIENTSDEBUG3\n");
 
 		savedGametype = sv_gametype->integer;
@@ -1365,6 +1380,7 @@ void SV_DemoStartPlayback(void)
 			}
 			Com_Printf("DGBO CLIENTSDEBUG5\n");
 			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", strlen(fs) ? fs : BASEGAME);
+			Cvar_SetValue("sv_democlients", 0);
 			Cbuf_AddText(va("game_restart %s\n", fs));
 			//Cbuf_AddText(va("delay 2000 \"set sv_maxclients %i;map_restart\"\n", savedMaxClients+clients));
 			//Cbuf_ExecuteText(EXEC_APPEND, va("delay 8000 \"set sv_democlients %i;set sv_maxclients %i\"\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
@@ -1372,7 +1388,8 @@ void SV_DemoStartPlayback(void)
 		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
 
-		Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
+		Cbuf_AddText(va("g_gametype %i\ndevmap %s\n", gametype, map));
+		//Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
 		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
 		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
 
@@ -1511,7 +1528,8 @@ void SV_DemoStopPlayback(void)
 		//Cbuf_AddText("map_restart 0\n");
 #else
 		Com_Error (ERR_DROP,"An error happened while replaying the demo, please check the log for more info\n");
-		Cbuf_AddText("killserver\n");
+		Cvar_SetValue("sv_killserver", 1);
+		//Cbuf_AddText("killserver\n");
 #endif
 	} else if (olddemostate == DS_PLAYBACK) {
 #ifdef DEDICATED

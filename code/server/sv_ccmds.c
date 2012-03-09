@@ -1348,7 +1348,7 @@ static void SV_Demo_Play_f( void ) {
                 return;
         }
 
-        if (sv.demoState != DS_NONE) {
+        if (sv.demoState != DS_NONE && sv.demoState != DS_WAITINGPLAYBACK) {
                 Com_Printf("A demo is already being recorded/played.\n");
                 return;
         }
@@ -1390,7 +1390,7 @@ static void SV_Demo_Stop_f( void ) {
         }
 
         // Close the demo file
-        if (sv.demoState == DS_PLAYBACK)
+        if (sv.demoState == DS_PLAYBACK || sv.demoState == DS_WAITINGPLAYBACK)
                 SV_DemoStopPlayback();
         else
                 SV_DemoStopRecord();

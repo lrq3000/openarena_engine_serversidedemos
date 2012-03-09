@@ -1153,6 +1153,8 @@ void SV_Frame( int msec ) {
 
 		if (sv.demoState == DS_RECORDING)
 			SV_DemoWriteFrame();
+		else if (sv.demoState == DS_WAITINGPLAYBACK || Cvar_VariableIntegerValue("sv_demoState") == DS_WAITINGPLAYBACK)
+			SV_DemoRestartPlayback();
 		else if (sv.demoState == DS_PLAYBACK)
 			SV_DemoReadFrame();
 	}
