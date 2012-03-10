@@ -423,6 +423,12 @@ char *SV_CleanStrCmd( char *str, int MAXCONST );
 char *SV_GenerateDateTime(void);
 
 //
+// sv_demo_ext.c
+//
+
+void SV_GentityGetField( sharedEntity_t * gent, playerState_t *player );
+
+//
 // sv_game.c
 //
 int	SV_NumForGentity( sharedEntity_t *ent );
