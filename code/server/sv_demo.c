@@ -72,7 +72,7 @@ Check that the clientCommand is OK (if not we either continue with a more specia
 */
 qboolean SV_CheckClientCommand( client_t *client, const char *cmd )
 {
-	char *userinfo;
+	char *userinfo = ""; // init with an empty string so that the compiler doesn't shout errors
 
 	if ( !strncmp(cmd, "userinfo", 8) ) { // If that's a userinfo command, we directly handle that with a specialized function
 		strncpy(userinfo, cmd+9, strlen(cmd)-9); // trimming out the "userinfo " substring (because we only need the userinfo string)
