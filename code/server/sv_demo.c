@@ -956,6 +956,30 @@ void SV_DemoReadRefreshEntities( void )
 
 /*
 ====================
+SV_DemoReadRefreshPlayersHealth
+
+Update all demoplayers health (will be reflected on the HUD when spectated - for team overlay see tinfo clientcommand)
+====================
+*/
+void SV_DemoReadRefreshPlayersHealth( void )
+{
+	int i;
+
+	// Update all players' health in HUD
+	for (i = 0; i < sv_democlients->integer; i++)
+	{
+		SV_GentityUpdateHealthField( SV_GentityNum(i), SV_GameClientNum(i) );
+
+		playerState_t *player;
+		static int oldhealth[MAX_CLIENTS]; // used for debugging, to avoid flooding the console and the log when the health has not changed from the previous frame
+		player = SV_GameClientNum(i);
+		if ( player->pm_type != PM_SPECTATOR && (oldhealth[i] != player->stats[STAT_HEALTH] || oldhealth[i] != sv.demoPlayerStates[i].stats[STAT_HEALTH]) )
+			Com_DPrintf("DGBO SV_HEALTHTEST (all health fields should be equal): client %i entityhealth:%i playerhealth:%i demohealth:%i playerarmor:%i\n", i, SV_GentityGetHealthField(SV_GentityNum(i)), player->stats[STAT_HEALTH], sv.demoPlayerStates[i].stats[STAT_HEALTH], player->stats[STAT_ARMOR]);
+	}
+}
+
+/*
+====================
 SV_DemoReadFrame
 
 Play a frame from the demo file
@@ -1057,6 +1081,9 @@ read_next_demo_event: // used to read next demo event
 				// Set the server time
 				sv.time = MSG_ReadLong(&msg); // refresh server in-game time (overwriting any change the game may have done)
 				memsvtime = sv.time; // keep memory of the last server time, in case we want to freeze the demo
+
+				// Update all players' health in HUD
+				SV_DemoReadRefreshPlayersHealth();
 
 				if (com_timescale->value > 1.0) { // Check for timescale: if timescale is faster (above 1.0), we read more frames at once (eg: timescale=2, we read 2 frames for one call of this function)
 					if (currentframe % (int)(com_timescale->value) != 0) { // Check that we've read all the frames we needed

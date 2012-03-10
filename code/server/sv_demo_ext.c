@@ -22,155 +22,51 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // sv_demo_ext.c -- Server side demo recording (supplementary functions)
 
-//#include "../game/g_local.h" // only needed to fill the damn gentity_t->health field, which is completely inaccessible by normal means!
-//#include "../qcommon/qcommon.h"
+#include "../game/g_local.h" // get both the definitions of gentity_t (to get gentity_t->health field) AND sharedEntity_t, so that we can convert a sharedEntity_t into a gentity_t (see more details in SV_GentityUpdateHealthField() notes)
+#include "../qcommon/qcommon.h" // needed so that the public declarations in server.h can access these functions (because server.h links to qcommon.h, so that it does server.h->qcommon.h->sv_demo_ext.c -- in the end, no includes redundancy conflicts and every server files can access these functions!)
 
-#include "server.h"
+//#include "server.h" // if you include server.h directly, you won't be able to include g_local.h, and you're stuck!
 
-typedef enum {
-	MOVER_POS1,
-	MOVER_POS2,
-	MOVER_1TO2,
-	MOVER_2TO1
-} moverState_t;
+/***********************************************
+ * AUXILIARY FUNCTIONS: UPDATING OF GENTITY_T->HEALTH
+ *
+ * Functions used to update some special aspects of the demo and which need to be separated from the main sv_demo.c file because of different includes that are necessary
+ ***********************************************/
 
-typedef struct gentity_s gentity_t;
+/*
+====================
+SV_GentityGetHealthField
 
-struct gentity_s {
-	entityState_t	s;				// communicated by server to clients
-	entityShared_t	r;				// shared by both the server system and game
-
-	// DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
-	// EXPECTS THE FIELDS IN THAT ORDER!
-	//================================
-
-	struct gclient_s	*client;			// NULL if not a client
-
-	qboolean	inuse;
-
-	char		*classname;			// set in QuakeEd
-	int			spawnflags;			// set in QuakeEd
-
-	qboolean	neverFree;			// if true, FreeEntity will only unlink
-									// bodyque uses this
-
-	int			flags;				// FL_* variables
-
-	char		*model;
-	char		*model2;
-	int			freetime;			// level.time when the object was freed
-
-	int			eventTime;			// events will be cleared EVENT_VALID_MSEC after set
-	qboolean	freeAfterEvent;
-	qboolean	unlinkAfterEvent;
-
-	qboolean	physicsObject;		// if true, it can be pushed by movers and fall off edges
-									// all game items are physicsObjects,
-	float		physicsBounce;		// 1.0 = continuous bounce, 0.0 = no bounce
-	int			clipmask;			// brushes with this content value will be collided against
-									// when moving.  items and corpses do not collide against
-									// players, for instance
-
-	// movers
-	moverState_t moverState;
-	int			soundPos1;
-	int			sound1to2;
-	int			sound2to1;
-	int			soundPos2;
-	int			soundLoop;
-	gentity_t	*parent;
-	gentity_t	*nextTrain;
-	gentity_t	*prevTrain;
-	vec3_t		pos1, pos2;
-
-	char		*message;
-
-	int			timestamp;		// body queue sinking, etc
-
-	float		angle;			// set in editor, -1 = up, -2 = down
-	char		*target;
-	char		*targetname;
-	char		*team;
-	char		*targetShaderName;
-	char		*targetShaderNewName;
-	gentity_t	*target_ent;
-
-	float		speed;
-	vec3_t		movedir;
-
-	int			nextthink;
-	void		(*think)(gentity_t *self);
-	void		(*reached)(gentity_t *self);	// movers call this when hitting endpoint
-	void		(*blocked)(gentity_t *self, gentity_t *other);
-	void		(*touch)(gentity_t *self, gentity_t *other, trace_t *trace);
-	void		(*use)(gentity_t *self, gentity_t *other, gentity_t *activator);
-	void		(*pain)(gentity_t *self, gentity_t *attacker, int damage);
-	void		(*die)(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod);
-
-	int			pain_debounce_time;
-	int			fly_sound_debounce_time;	// wind tunnel
-	int			last_move_time;
-
-	int			health;
-
-	qboolean	takedamage;
-
-	int			damage;
-	int			splashDamage;	// quad will increase this without increasing radius
-	int			splashRadius;
-	int			methodOfDeath;
-	int			splashMethodOfDeath;
-
-	int			count;
-
-	gentity_t	*chain;
-	gentity_t	*enemy;
-	gentity_t	*activator;
-	gentity_t	*teamchain;		// next entity in team
-	gentity_t	*teammaster;	// master of the team
-
-#ifdef MISSIONPACK
-	int			kamikazeTime;
-	int			kamikazeShockTime;
-#endif
-
-	int			watertype;
-	int			waterlevel;
-
-	int			noise_index;
-
-	// timing variables
-	float		wait;
-	float		random;
-
-	gitem_t		*item;			// for bonus items
-};
-
-void SV_GentityGetField( sharedEntity_t * gent, playerState_t *player ) {
+Get the value of the gentity_t->health field (only used for testing purposes)
+====================
+*/
+int SV_GentityGetHealthField( sharedEntity_t * gent ) {
     gentity_t *ent;
-    int num;
-
-    //ent = &g_entities[num];
 
     ent = (gentity_t*)gent;
-    //num = args[2];
 
-    Com_Printf("DGBO GENGETFIELD: health: %i\n", ent->health);
-    ent->health = player->stats[STAT_HEALTH]; // update health
-    //Com_Printf("DGBO GENGETFIELD: %i TEST\n", num);
+    //Com_Printf("DEMODEBUG GENGETFIELD: health: %i\n", ent->health);
+    return ent->health;
 }
 
 /*
-void SV_GentityGetField( intptr_t *args ) {
+====================
+SV_GentityUpdateHealthField
+
+Update the value of the gentity_t->health field with playerState_t->stats[STAT_HEALTH] for a given player
+You need to supply the player's sharedEntity and playerState (because since we have special includes here, we don't have access to the functions that can return a player from their int id).
+The concrete effect is that when replaying a demo, the players' health will be updated on the HUD (if it weren't for this function to update the health, the health wouldn't change and stay kinda static).
+
+Note: we need to do that because the demo can only records this stats[stat_health], which is concretely the same as gentity_t->health. The latter should have been removed altogether considering the comments in g_active.c (ent->client->ps.stats[STAT_HEALTH] = ent->health;	// FIXME: get rid of ent->health...), but it seems to have survived because it allows non-player entities to have health, such as obelisks. And weirdly, gentity_t->health has ascendence over stat_health (meaning stat_health is updated following gentity_t->health, but never the other way around), when for example stat_armor has ascendence over anything else of the same kind, so here we have to update it by ourselves.
+Note2: this works pretty simply: sharedEntity_t = gentity_t but with only the first 2 fields declared (entityShared_t and entityState_t), but all the other fields are still in memory! We only need to get a valid declaration for gentity_t (which we do by doing the right includes at the top of this file, in g_local.h), and then we can convert the limited sharedEntity_t into a gentity_t with all the fields!
+====================
+*/
+void SV_GentityUpdateHealthField( sharedEntity_t * gent, playerState_t *player ) {
     gentity_t *ent;
-    int num;
 
-    //ent = &g_entities[num];
+    ent = (gentity_t*)gent; // convert the sharedEntity_t to a gentity_t by using a simple cast (now that we have included g_local.h that contains the definition of gentity_t, and at the same time we have linked to g_public.h via g_local.h with the definition of sharedEntity_t)
 
-    ent = (gentity_t*)VMA(1);
-    //num = args[2];
+    ent->health = player->stats[STAT_HEALTH]; // update player's health from playerState_t->stats[STAT_HEALTH] field
 
-    Com_Printf("DGBO GENGETFIELD: health: %i\n", &ent->client->ps.stats[STAT_HEALTH]);
-    //Com_Printf("DGBO GENGETFIELD: %i TEST\n", num);
+    return;
 }
- */

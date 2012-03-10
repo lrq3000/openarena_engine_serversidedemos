@@ -1160,20 +1160,7 @@ void SV_Frame( int msec ) {
 		else if (sv.demoState == DS_WAITINGPLAYBACK || Cvar_VariableIntegerValue("sv_demoState") == DS_WAITINGPLAYBACK)
 			SV_DemoRestartPlayback();
 		else if (sv.demoState == DS_PLAYBACK)
-		{
 			SV_DemoReadFrame();
-
-			for (i = 0; i < sv_democlients->integer; i++)
-			{
-				player = SV_GameClientNum(i);
-				if ( player->pm_type != PM_SPECTATOR && (oldhealth[i] != player->stats[STAT_HEALTH] || oldhealth[i] != sv.demoPlayerStates[i].stats[STAT_HEALTH]) ) {
-					Com_DPrintf("DGBO SV_HEALTHTEST: client %i playerhealth:%i demohealth:%i playerarmor:%i\n", i, player->stats[STAT_HEALTH], sv.demoPlayerStates[i].stats[STAT_HEALTH], player->stats[STAT_ARMOR]);
-					oldhealth[i] = player->stats[STAT_HEALTH];
-					SV_GentityGetField( SV_GentityNum(i), player );
-					//ent = SV_GentityNum(i);
-				}
-			}
-		}
 
 	}
 
