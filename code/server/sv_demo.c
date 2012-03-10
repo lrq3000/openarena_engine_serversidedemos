@@ -1535,7 +1535,14 @@ void SV_DemoStopPlayback(void)
 #ifdef DEDICATED
 		Cbuf_AddText(va("map %s\n", Cvar_VariableString( "mapname" ))); // better to do a map command rather than map_restart if we do a mod switching with game_restart, map_restart will point to no map (because the config is completely unloaded)
 #else
-		Cbuf_AddText("map_restart 0\ndelay 2000 killserver\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
+		Cvar_Get( "sv_maxclients", "8", 0 );
+		sv_maxclients->modified = qfalse;
+		Cvar_SetValue("sv_killserver", 1);
+		//Cbuf_AddText("map_restart 0\n"); // we have to do a map_restart before killing the client-side local server that was used to replay the demo, for the old restored values for sv_democlients and sv_maxclients to be updated (else, if you directly try to launch another demo just after, it will crash - it seems that 2 consecutive latching without an update makes the engine crash) + we need to have a delay between restarting map and killing the server else it will produce a bug
+		/*
+		sv.demoState = DS_WAITINGSTOP;
+		Cvar_SetValue("sv_demoState", DS_WAITINGSTOP);
+		*/
 #endif
 	}
 
