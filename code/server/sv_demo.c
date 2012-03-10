@@ -456,17 +456,21 @@ Note: in practice, clients userinfo should be loaded before their configstrings 
 void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 {
 	msg_t msg;
+	static char fuserinfodata[MAX_STRING_CHARS];
+	static char *fuserinfo = fuserinfodata;
 
 	Com_DPrintf("DGBO SV_DemoWriteClientUserinfo: %i %s\n", client - svs.clients, userinfo);
 
+	Q_strncpyz(fuserinfo, userinfo, sizeof(fuserinfo)); // copy the client's userinfo to another storage var, so that we don't modify the client's userinfo (else the filtering will clean its infos such as cl_guid and ip, and next map change the client will be disconnected because of a wrong guid/ip!)
+
 	if (strlen(userinfo) > 0) { // do the filtering only if the string is not empty
-		SV_DemoFilterClientUserinfo( userinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
+		SV_DemoFilterClientUserinfo( fuserinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
 	}
 
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_clientUserinfo); // write the event marker
 	MSG_WriteBits(&msg, client - svs.clients, CLIENTNUM_BITS); // write the client number (client_t - svs.clients = client num int)
-	MSG_WriteString(&msg, userinfo); // write the (filtered) userinfo string
+	MSG_WriteString(&msg, fuserinfo); // write the (filtered) userinfo string
 	SV_DemoWriteMessage(&msg); // commit this demo event in the demo file
 }
 
