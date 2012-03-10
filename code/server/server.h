@@ -427,6 +427,7 @@ char *SV_GenerateDateTime(void);
 //
 
 int SV_GentityGetHealthField( sharedEntity_t * gent );
+void SV_GentitySetHealthField( sharedEntity_t * gent, int value );
 void SV_GentityUpdateHealthField( sharedEntity_t * gent, playerState_t *player );
 
 //

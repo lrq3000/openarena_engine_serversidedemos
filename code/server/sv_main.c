@@ -1058,10 +1058,6 @@ happen before SV_Frame is called
 void SV_Frame( int msec ) {
 	int		frameMsec;
 	int		startTime;
-	playerState_t *player;
-	clientSnapshot_t	*frame;
-	int i;
-	static int				oldhealth[MAX_CLIENTS];
 
 	// the menu kills the server with this cvar
 	if ( sv_killserver->integer ) {
@@ -1161,7 +1157,6 @@ void SV_Frame( int msec ) {
 			SV_DemoRestartPlayback();
 		else if (sv.demoState == DS_PLAYBACK)
 			SV_DemoReadFrame();
-
 	}
 
 	if ( com_speeds->integer ) {

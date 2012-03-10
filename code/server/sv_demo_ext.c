@@ -51,6 +51,21 @@ int SV_GentityGetHealthField( sharedEntity_t * gent ) {
 
 /*
 ====================
+SV_GentitySetHealthField
+
+Set the value of the gentity_t->health field (only used for testing purposes)
+====================
+*/
+void SV_GentitySetHealthField( sharedEntity_t * gent, int value ) {
+    gentity_t *ent;
+
+    ent = (gentity_t*)gent;
+
+    ent->health = value;
+}
+
+/*
+====================
 SV_GentityUpdateHealthField
 
 Update the value of the gentity_t->health field with playerState_t->stats[STAT_HEALTH] for a given player
