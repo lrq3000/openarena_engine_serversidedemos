@@ -62,6 +62,10 @@ static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int savedGametype = -1;
 
+static int savedTimelimit = -1;
+static int savedFraglimit = -1;
+static int savedCapturelimit = -1;
+
 static char savedFsGameVal[MAX_QPATH] = "";
 static char *savedFsGame = savedFsGameVal;
 
@@ -128,7 +132,7 @@ qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore )
 	static char prevcmddata[MAX_STRING_CHARS];
 	static char *prevcmd = prevcmddata;
 
-	Com_DPrintf("DGBOCheckLastCmdTEST: cprevcmd:%s cnewcmd:%s\n", SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS));
+	//Com_DPrintf("DGBOCheckLastCmdTEST: cprevcmd:%s cnewcmd:%s\n", SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS));
 
 	if ( !onlyStore && // if we only want to store, we skip any checking
 	    strlen(prevcmd) > 0 && !strcmp(SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS)) ) { // check that the previous cmd was different from the current cmd.
@@ -1383,6 +1387,9 @@ void SV_DemoStartPlayback(void)
 		} else if ( !strcmp(metadata, "g_gametype") ) {
 			// reading g_gametype (from the demo)
 			gametype = MSG_ReadLong(&msg);
+			// memorize the current gametype
+			if ( !keepSaved )
+				savedGametype = sv_gametype->integer; // save the gametype before switching
 
 		} else if ( !strcmp(metadata, "fs_game") ) {
 			// reading fs_game (mod name)
@@ -1404,14 +1411,29 @@ void SV_DemoStartPlayback(void)
 		} else if ( !strcmp(metadata, "timelimit") ) {
 			// reading initial timelimit
 			timelimit = MSG_ReadLong(&msg);
+			// memorize the current timelimit
+			if ( !keepSaved )
+				savedTimelimit = Cvar_VariableIntegerValue("timelimit");
+			// set the demo setting
+			Cvar_SetValue("timelimit", timelimit); // Note: setting the timelimit is NOT necessary for the demo to be replayed (in fact even if the timelimit is reached, the demo will still continue to feed new frames and thus force the game to continue, without any bug - also to the opposite, if the timelimit is too high, the game will be finished when the demo will replay the events, even if the timelimit is not reached but was in the demo, it will be when replaying the demo), but setting it allows for timelimit warning and suddenDeath voice announcement to happen. FIXME: if the timelimit is changed during the game, it won't be reflected in the demo (but the demo will still continue to play, or stop if the game is won).
 
 		} else if ( !strcmp(metadata, "fraglimit") ) {
 			// reading initial fraglimit
 			fraglimit = MSG_ReadLong(&msg);
+			// memorize the current fraglimit
+			if ( !keepSaved )
+				savedFraglimit = Cvar_VariableIntegerValue("fraglimit");
+			// set the demo setting
+			Cvar_SetValue("fraglimit", fraglimit); // Note: unnecessary for the demo to be replayed, but allows to show the limit in the HUD. FIXME: if the limit is changed during the game, the new value won't be reflected in the demo (but the demo will continue to play to its integrality)
 
 		} else if ( !strcmp(metadata, "capturelimit") ) {
 			// reading initial capturelimit
 			capturelimit = MSG_ReadLong(&msg);
+			// memorize the current capturelimit
+			if ( !keepSaved )
+				savedCapturelimit = Cvar_VariableIntegerValue("capturelimit");
+			// set the demo setting
+			Cvar_SetValue("capturelimit", capturelimit); // Note: unnecessary for the demo to be replayed, but allows to show the limit in the HUD. FIXME: if the limit is changed during the game, the new value won't be reflected in the demo (but the demo will continue to play to its integrality)
 
 		// Additional infos (not necessary to replay a demo)
 		} else if ( !strcmp(metadata, "hostname") ) {
@@ -1441,41 +1463,41 @@ void SV_DemoStartPlayback(void)
 		// delay command is here used as a workaround for waiting until the map is fully restarted
 
 		//Cvar_SetValue("sv_democlients", 0); // necessary to stop the playback, else it will produce an error since the demo has not yet started!
-		keepSaved = qtrue;
-		SV_DemoStopPlayback();
-		sv.demoState = DS_WAITINGPLAYBACK;
-		Cvar_SetValue("sv_demoState", DS_WAITINGPLAYBACK);
+		keepSaved = qtrue; // Declare that we want to keep the value saved (and we don't want to restore them now, because the demo hasn't started yet!)
+		SV_DemoStopPlayback(); // Stop the demo playback (reset back any change)
+		sv.demoState = DS_WAITINGPLAYBACK; // Set the status WAITINGPLAYBACK meaning that as soon as the server will be restarted, the next SV_Frame() iteration must reactivate the demo playback
+		Cvar_SetValue("sv_demoState", DS_WAITINGPLAYBACK); // set the cvar too because when restarting the server, all sv.* vars will be destroyed
 		Q_strncpyz(savedPlaybackDemoname, Cmd_Cmd(), MAX_QPATH); // we need to copy the value because since we may spawn a new server (if the demo is played client-side OR if we change fs_game), we will lose all sv. vars
-		Com_Printf("DGBO CLIENTSDEBUG3\n");
-
-		savedGametype = sv_gametype->integer;
 
 		Cvar_SetValue("sv_autoDemo", 0); // disable sv_autoDemo else it will start a recording before we can replay a demo (since we restart the map)
 
+		// **** Automatic mod (fs_game) switching management ****
 		if ( ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
 		    (!strlen(fs) && strcmp(Cvar_VariableString("fs_game"), fs) && strcmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
-			Com_Printf("DGBO CLIENTSDEBUG4\n");
+
+			// Memorize the current mod (only if we are indeed switching mod, otherwise we will save basegame instead of empty strings and force a mod switching when stopping the demo when we haven't changed mod in the first place!)
 			if (strlen(Cvar_VariableString("fs_game"))) { // if fs_game is not "", we save it
 				Q_strncpyz(savedFsGame, (const char*)Cvar_VariableString("fs_game"), MAX_QPATH);
-			} else { // else, it's equal to "", and this means that we were playing in the basegame mod
+			} else { // else, it's equal to "", and this means that we were playing in the basegame mod, but we need to have a non-empty string, else we can't use game_restart!
 				Q_strncpyz(savedFsGame, BASEGAME, MAX_QPATH);
 			}
 
+			// Switch the mod
 			Com_Printf("DEMO: Trying to switch automatically to the mod %s to replay the demo\n", strlen(fs) ? fs : BASEGAME);
-			Cvar_SetValue("sv_democlients", 0);
-			Cbuf_AddText(va("game_restart %s\n", fs));
+			Cvar_SetValue("sv_democlients", 0); // set sv_democlients to 0 (because game_restart will reset sv_maxclients, so we have a risk to have a greater sv_democlients than sv_maxclients, and we don't want that)
+			Cbuf_AddText(va("game_restart %s\n", fs)); // switch mod!
 			//Cbuf_AddText(va("delay 2000 \"set sv_maxclients %i;map_restart\"\n", savedMaxClients+clients));
 			//Cbuf_ExecuteText(EXEC_APPEND, va("delay 8000 \"set sv_democlients %i;set sv_maxclients %i\"\n", clients, sv_maxclients->integer + clients)); // change again the sv_democlients and maxclients cvars after the game_restart (because it will wipe out all vars to their default)
 		}
 		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
 
-		Cbuf_AddText(va("g_gametype %i\ndevmap %s\n", gametype, map));
+		Cbuf_AddText(va("g_gametype %i\ndevmap %s\n", gametype, map)); // Change gametype and map (using devmap to enable cheats). FIXME: is devmap and cheats enabled really necessary?
 		//Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
 		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
 		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
 
-		return;
+		return; // Quit and wait for the next SV_Frame() iteration (when the server/map will have restarted) to retry playing the demo
 	}
 
 
@@ -1571,32 +1593,52 @@ void SV_DemoStopPlayback(void)
 	if ( !keepSaved ) {
 		Com_DPrintf("DEMODEBUG reloadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 
+		Cvar_SetValue("sv_democlients", 0);
+
 		if (savedMaxClients >= 0) {
 			Cvar_SetValueLatched("sv_maxclients", savedMaxClients);
 			/*
 			Cvar_Get( "sv_maxclients", "8", 0 );
 			sv_maxclients->modified = qfalse;
 			*/
-			Cvar_SetValue("sv_democlients", 0);
 
 			savedMaxClients = -1;
 		}
 
-		if (savedBotMinPlayers >= 0)
+		if (savedBotMinPlayers >= 0) {
 			Cvar_SetValue("bot_minplayers", savedBotMinPlayers);
 			savedBotMinPlayers = -1;
+		}
 
-		if (savedFPS > 0)
+		if (savedFPS > 0) {
 			Cvar_SetValue("sv_fps", savedFPS);
 			savedFPS = -1;
+		}
 
-		if (savedGametype > 0)
+		if (savedGametype >= 0) {
 			Cvar_SetValueLatched("g_gametype", savedGametype);
 			savedGametype = -1;
+		}
 
-		if (strlen(savedFsGame))
+		if (savedTimelimit >= 0) {
+			Cvar_SetValue("timelimit", savedTimelimit);
+			savedTimelimit = -1;
+		}
+
+		if (savedFraglimit >= 0) {
+			Cvar_SetValue("fraglimit", savedFraglimit);
+			savedFraglimit = -1;
+		}
+
+		if (savedCapturelimit >= 0) {
+			Cvar_SetValue("capturelimit", savedCapturelimit);
+			savedCapturelimit = -1;
+		}
+
+		if (strlen(savedFsGame)) { // After setting all the other vars, we switch back the mod if necessary (it must be done only AFTER all the other cvars are set, else cvars set after won't take effect!)
 			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
 			Q_strncpyz(savedFsGame, "", MAX_QPATH);
+		}
 
 		Com_DPrintf("DEMODEBUG reloadtestsaved2: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG reloadtestsaved3: Fs_Game:%s Gametype:%i\n", Cvar_VariableString("fs_game"), sv_gametype->integer);
