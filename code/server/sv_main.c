@@ -66,6 +66,7 @@ cvar_t  *sv_flatline;			// If the master server supports it we can send a flatli
 cvar_t	*sv_demoState;
 cvar_t	*sv_autoDemo;
 cvar_t	*cl_freezeDemo; // to freeze server-side demos
+cvar_t	*sv_demoTolerant;
 
 serverBan_t serverBans[SERVER_MAXBANS];
 int serverBansCount = 0;

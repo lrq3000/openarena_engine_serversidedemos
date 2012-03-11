@@ -294,6 +294,7 @@ extern	cvar_t	*sv_flatline;
 extern	cvar_t	*sv_demoState;
 extern	cvar_t	*sv_autoDemo;
 extern	cvar_t	*cl_freezeDemo;
+extern	cvar_t	*sv_demoTolerant;
 
 extern	serverBan_t serverBans[SERVER_MAXBANS];
 extern	int serverBansCount;
