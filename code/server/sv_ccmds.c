@@ -1301,7 +1301,7 @@ static void SV_Demo_Record_f( void ) {
         }
 
         if (sv.demoState != DS_NONE) {
-                Com_Printf("A demo is already being recorded/played.\n");
+                Com_Printf("A demo is already being recorded/played. Use demo_stop and retry.\n");
                 return;
         }
 
@@ -1349,7 +1349,7 @@ static void SV_Demo_Play_f( void ) {
         }
 
         if (sv.demoState != DS_NONE && sv.demoState != DS_WAITINGPLAYBACK) {
-                Com_Printf("A demo is already being recorded/played.\n");
+                Com_Printf("A demo is already being recorded/played. Use demo_stop and retry.\n");
                 return;
         }
 
