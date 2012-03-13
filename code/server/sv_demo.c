@@ -62,6 +62,7 @@ static int savedBotMinPlayers = -1;
 static int savedFPS = -1;
 static int savedGametype = -1;
 
+static int savedDoWarmup = -1;
 static int savedTimelimit = -1;
 static int savedFraglimit = -1;
 static int savedCapturelimit = -1;
@@ -721,7 +722,10 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 	num = MSG_ReadBits(msg, CLIENTNUM_BITS);
 	configstring = MSG_ReadString(msg);
-	Com_DPrintf("DebugGBOclientConfigString: %i %i %s\n", num, CS_PLAYERS + num, configstring);
+
+	Com_DPrintf("DebugGBOclientConfigString: %i %i oldcs:%s\n", num, CS_PLAYERS + num, sv.configstrings[CS_PLAYERS + num]);
+	Com_DPrintf("DebugGBOclientConfigString: %i %i newcs:%s\n", num, CS_PLAYERS + num, configstring);
+
 	//SV_SetConfigstring(CS_PLAYERS + num, configstring); //, qtrue
 	//SV_SetUserinfo( num, configstring );
 	//SV_UpdateUserinfo_f(client);
@@ -741,8 +745,8 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 		int svdoldteam;
 		int svdnewteam;
-		svdoldteam = atoi(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t"));
-		svdnewteam = atoi(Info_ValueForKey(configstring, "t"));
+		svdoldteam = strlen(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) ? atoi(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) : -1; // affect the new team if detected, else if an empty string is returned, just set -1 (will allow us to detect that there's really no team change instead of having 0 which is TEAM_FREE)
+		svdnewteam = strlen(Info_ValueForKey(configstring, "t")) ? atoi(Info_ValueForKey(configstring, "t")) : -1;
 
 		// Set the client configstring (using a standard Q3 function)
 		SV_SetConfigstring(CS_PLAYERS + num, configstring);
@@ -751,6 +755,13 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 		svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
 		strcpy( svs.clients[num].name, Info_ValueForKey( configstring, "n" ) ); // set the name (useful for internal functions such as status_f). We use strcpy to copy a const char* to a char[32] (an array, so we need this function) // FIXME: extracted normally from userinfo?
 		//svs.clients[num].state or client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
+
+		//NET_StringToAdr("localhost", &svs.clients[num].netchan.remoteAddress, NA_UNSPEC); // NA_UNSPEC
+		//svs.clients[num].netchan.remoteAddress = ip;
+		//svs.clients[num].lastPacketTime = svs.time;
+		//svs.clients[num].netchan.remoteAddress.type = NA_LOOPBACK; // or NA_BOT
+		//svs.clients[num].netchan.remoteAddress.type = NA_BOT;
+		//svs.clients[num].rate = 16384;
 
 		/*
 		// Update userinfo
@@ -763,7 +774,7 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 		// DEMOCLIENT TEAM MANAGEMENT
 		if (configstring && strlen(configstring) && svdnewteam >= TEAM_FREE && svdnewteam < TEAM_NUM_TEAMS &&
-		    ( !svdoldteam || svdoldteam != svdnewteam ) && // if there was no team for this player before or if the new team is different
+		    ( svdoldteam == -1 || (svdoldteam != svdnewteam && svdnewteam != -1) ) && // if there was no team for this player before or if the new team is different
 		    !strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) ) {  // TOFIX: Also here we check that the democlient is not a bot by looking if the skill var exists: if it's a bot, setting all bots to their right team will make the gamecode crash (g_restarted set to 1), but I couldn't locate where the problem comes from (maybe the system tries to send them some packets?). Anyway, we don't really care that bots get set to the right team, they will anyway be replayed. But players will be ok.
 			// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
 			char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
@@ -1446,6 +1457,13 @@ void SV_DemoStartPlayback(void)
 		}
 	}
 
+	if (!keepSaved) { // we memorize values only if it's the first time we launch the playback of this demo, else the values may have already been modified by the demo playback
+		// Memorize g_doWarmup
+		savedDoWarmup = Cvar_VariableIntegerValue("g_doWarmup");
+	}
+	// Remove g_doWarmup (bugfix: else it will produce a weird bug with all gametypes except CTF and Double Domination because of CheckTournament() in g_main.c which will make the demo stop after the warmup time)
+	Cvar_SetValue("g_doWarmup", 0);
+
 	// Printing infos about the demo
 	if ( !sv_demoTolerant->integer ) // print the meta datas only if we're not in faults tolerance mode (because if there are missing meta datas, the printing will throw an exception! So we'd better avoid it)
 		Com_Printf("DEMO: Details of %s recorded %s on server \"%s\": sv_fps: %i initial_servertime: %i clients: %i fs_game: %s g_gametype: %i map: %s timelimit: %i fraglimit: %i capturelimit: %i \n", sv.demoName, datetime, hostname, fps, time, clients, fs, gametype, map, timelimit, fraglimit, capturelimit);
@@ -1597,8 +1615,8 @@ void SV_DemoStopPlayback(void)
 	Cvar_SetValue("sv_demoState", DS_NONE);
 	Com_Printf("DEMO: End of demo. Stopped playing demo %s.\n", sv.demoName);
 
-	// restore maxclients and democlients
-	// Note: must do it before the map_restart! so that it takes effect (because it's latched)
+	// Restore initial cvars of the server that were modified by the demo playback
+	// Note: must do it before the map_restart! so that latched values such as sv_maxclients takes effect
 	if ( !keepSaved ) {
 		Com_DPrintf("DEMODEBUG reloadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 
@@ -1622,6 +1640,11 @@ void SV_DemoStopPlayback(void)
 		if (savedFPS > 0) {
 			Cvar_SetValue("sv_fps", savedFPS);
 			savedFPS = -1;
+		}
+
+		if (savedDoWarmup >= 0) {
+			Cvar_SetValue("g_doWarmup", savedDoWarmup);
+			savedDoWarmup = -1;
 		}
 
 		if (savedTimelimit >= 0) {
