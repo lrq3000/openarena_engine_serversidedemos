@@ -184,7 +184,7 @@ qboolean SV_CheckConfigString( int cs_index, const char *cs_string )
 	if ( cs_index >= CS_PLAYERS && cs_index < CS_PLAYERS + sv_maxclients->integer ) { // if this is a player, we save the configstring as a clientconfigstring
 		SV_DemoWriteClientConfigString( cs_index - CS_PLAYERS, cs_string );
 		return qfalse; // we return false if the check wasn't right (meaning that we stop the normal configstring processing since the clientconfigstring function will handle that)
-	} else if ( cs_index < 4 ) { // if the configstring index is below 4 (the motd), we don't save it (these are systems configstrings and will make an infinite loop for real clients at connection when the demo is played back, their management must be left to the system even at replaying)
+	} else if ( cs_index < CS_MOTD ) { // if the configstring index is below 4 (the motd), we don't save it (these are systems configstrings and will make an infinite loop for real clients at connection when the demo is played back, their management must be left to the system even at replaying)
 		return qfalse; // just drop this configstring
 	}
 	return qtrue; // else, the check is OK and we continue to process to save it as a normal configstring (for capture scores CS_SCORES1/2, for CS_FLAGSTATUS, etc..)
@@ -1454,7 +1454,8 @@ void SV_DemoStartPlayback(void)
 	// FIXME? why sv_cheats is needed?
 	if ( !com_sv_running->integer || strcmp(sv_mapname->string, map) ||
 	    strcmp(Cvar_VariableString("fs_game"), fs) ||
-	    !Cvar_VariableIntegerValue("sv_cheats") || time < sv.time ||
+	    !Cvar_VariableIntegerValue("sv_cheats") ||
+	    (time < sv.time && !keepSaved) || // if the demo initial time is below server time AND we didn't already restart for demo playback, then we must restart to reinit the server time (because else, it might happen that the server time is still above demo time if the demo was recorded during a warmup time, in this case we won't restart the demo playback but just iterate a few demo frames in the void to catch up the server time, see below the else statement)
 	    sv_maxclients->modified ||
 	    sv_gametype->integer != gametype )
 	{
@@ -1498,7 +1499,15 @@ void SV_DemoStartPlayback(void)
 		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
 
 		return; // Quit and wait for the next SV_Frame() iteration (when the server/map will have restarted) to retry playing the demo
+
+	} else if ( time < sv.time && keepSaved ) { // else if the demo time is still below the server time but we already restarted for the demo playback, we just iterate a few demo frames in the void to catch to until we are above the server time. Note: having a server time below the demo time is CRITICAL, else we may send to the clients a server time that is below the previous, making the time going backward, which should NEVER happen!
+		int timetoreach = sv.time;
+		sv.time = time;
+		while (sv.time < timetoreach) {
+			SV_DemoReadFrame(); // run a few frames to settle things out
+		}
 	}
+
 
 
 	// Initialize our stuff
@@ -1615,11 +1624,6 @@ void SV_DemoStopPlayback(void)
 			savedFPS = -1;
 		}
 
-		if (savedGametype >= 0) {
-			Cvar_SetValueLatched("g_gametype", savedGametype);
-			savedGametype = -1;
-		}
-
 		if (savedTimelimit >= 0) {
 			Cvar_SetValue("timelimit", savedTimelimit);
 			savedTimelimit = -1;
@@ -1635,12 +1639,21 @@ void SV_DemoStopPlayback(void)
 			savedCapturelimit = -1;
 		}
 
+		Com_DPrintf("DEMODEBUG reloadtestsaved2: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
+
 		if (strlen(savedFsGame)) { // After setting all the other vars, we switch back the mod if necessary (it must be done only AFTER all the other cvars are set, else cvars set after won't take effect!)
 			Cbuf_AddText(va("game_restart %s\n", savedFsGame));
 			Q_strncpyz(savedFsGame, "", MAX_QPATH);
 		}
 
-		Com_DPrintf("DEMODEBUG reloadtestsaved2: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
+		if (savedGametype >= 0) {
+			Cvar_SetValueLatched("g_gametype", savedGametype);
+			//Cvar_Get( "g_gametype", "0", 0 ); // force refresh of the gametype (fix for gametype not restored when switching initial mod back)
+			Cbuf_AddText(va("g_gametype %i\n", savedGametype));
+			//g_gametype->modified = qfalse;
+			savedGametype = -1;
+		}
+
 		Com_DPrintf("DEMODEBUG reloadtestsaved3: Fs_Game:%s Gametype:%i\n", Cvar_VariableString("fs_game"), sv_gametype->integer);
 	}
 
