@@ -1457,8 +1457,8 @@ void SV_DemoStartPlayback(void)
 	    !Cvar_VariableIntegerValue("sv_cheats") ||
 	    (time < sv.time && !keepSaved) || // if the demo initial time is below server time AND we didn't already restart for demo playback, then we must restart to reinit the server time (because else, it might happen that the server time is still above demo time if the demo was recorded during a warmup time, in this case we won't restart the demo playback but just iterate a few demo frames in the void to catch up the server time, see below the else statement)
 	    sv_maxclients->modified ||
-	    sv_gametype->integer != gametype )
-	{
+	    (sv_gametype->integer != gametype && !(gametype == GT_SINGLE_PLAYER && sv_gametype->integer == GT_FFA) ) // check for gametype change (need a restart to take effect since it's a latched var) AND check that the gametype difference is not between SinglePlayer and DM/FFA, which are in fact the same gametype (and the server will automatically change SinglePlayer to FFA, so we need to detect that and ignore this automatic change)
+	   ) {
 		/// Change to the right map and start the demo with a hardcoded 10 seconds delay
 		// FIXME: this should not be a hardcoded value, there should be a way to ensure that the map fully restarted before continuing. And this can NOT be based on warmup, because if warmup is set to 0 (disabled), then you'll have no delay, and a delay is necessary! If the demo starts replaying before the map is restarted, it will simply do nothing.
 		// delay command is here used as a workaround for waiting until the map is fully restarted
