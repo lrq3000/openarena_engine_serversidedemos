@@ -63,6 +63,8 @@ static int savedFPS = -1;
 static int savedGametype = -1;
 
 static int savedDoWarmup = -1;
+static int savedAllowVote = -1;
+
 static int savedTimelimit = -1;
 static int savedFraglimit = -1;
 static int savedCapturelimit = -1;
@@ -836,21 +838,25 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	//Com_DPrintf("DebugGBOclientUserinfo2: oldteam: %s newteam: %s - strlen(userinfo): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(userinfo), strlen(svdnewteam));
 
 	Cmd_TokenizeString( va("userinfo %s", userinfo) ); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
-	SV_UpdateUserinfo_f(client);
+	SV_UpdateUserinfo_f(client); // will update the server userinfo, automatically fill client_t fields and then transmit to the gamecode and call ClientUserinfoChanged() which will also update the gamecode's client_t from the new userinfo (eg: name [server-side] and netname [gamecode-side] will be both updated)
 	//Com_DPrintf("DebugGBOclientUserinfo3: strlen(userinfo): %i strlen(newteam): %i\n", strlen(userinfo), strlen(svdnewteam));
 	//Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, userinfo, svs.clients[num].userinfo);
 
 	Com_DPrintf("DebugGBOclientUserinfo3: COND: userinfo:%s strlenui:%i strlennewteam:%i strlenold:%i strcmp:%i fulllastcond:%i \n", userinfo, strlen(userinfo), strlen(svdnewteam), strlen(svdoldteam), strcmp(svdoldteam, svdnewteam), (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)));
 
 	// DEMOCLIENT INITIAL TEAM MANAGEMENT
-	// If the democlient changed team, we manually issue a team change (workaround by using a clientCommand team)
+	// Note: it is more interoperable to do team management here than in configstrings because here we have the team name as a string, so we can directly issue it in a "team" clientCommand
+	// Note2: this function is only necessary to set the initial team for democlients (the team they were at first when the demo started), for all the latter team changes, the clientCommands are recorded and will be replayed
 	if (userinfo && strlen(userinfo) && strlen(svdnewteam) &&
-	    ( !strlen(svdoldteam) || (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) // if there was no team for this player before OR if the new team is different
+	    ( !strlen(svdoldteam) || (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) && // if there was no team for this player before OR if the new team is different
+	    sv_gametype->integer != GT_TOURNAMENT // if it's tournament, playing players shouldn't send a team command, else they will be set back to spectator waiting queue (and so they won't be spectatable anymore)!
 	    ) {
+		// If the democlient changed team, we manually issue a team change (workaround by using a clientCommand team)
 		Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
 		SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
-	// Else if the democlient had no team and the new userinfo still has no field, probably the democlient is a spectator and shouldn't be followed. FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
+
 	} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo)) {
+		// Else if the democlient had no team and the new userinfo still has no field, probably the democlient is a spectator and shouldn't be followed. FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
 		Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i spectator\n", num);
 		SV_ExecuteClientCommand(client, "team spectator", qtrue); // send to spectator the client (prevent the democlient from being followed)
 	}
@@ -1446,12 +1452,23 @@ void SV_DemoStartPlayback(void)
 		}
 	}
 
+	// g_doWarmup
 	if (!keepSaved) { // we memorize values only if it's the first time we launch the playback of this demo, else the values may have already been modified by the demo playback
 		// Memorize g_doWarmup
 		savedDoWarmup = Cvar_VariableIntegerValue("g_doWarmup");
 	}
 	// Remove g_doWarmup (bugfix: else it will produce a weird bug with all gametypes except CTF and Double Domination because of CheckTournament() in g_main.c which will make the demo stop after the warmup time)
 	Cvar_SetValue("g_doWarmup", 0);
+
+	// g_allowVote
+	if (!keepSaved) { // same for g_allowVote
+		// Memorize g_allowVote
+		savedAllowVote = Cvar_VariableIntegerValue("g_allowVote");
+	}
+	// Remove g_allowVote (prevent players to call a vote while a map is replaying)
+	Cvar_SetValue("g_allowVote", 0);
+
+
 
 	// Printing infos about the demo
 	if ( !sv_demoTolerant->integer ) // print the meta datas only if we're not in faults tolerance mode (because if there are missing meta datas, the printing will throw an exception! So we'd better avoid it)
@@ -1635,6 +1652,11 @@ void SV_DemoStopPlayback(void)
 		if (savedDoWarmup >= 0) {
 			Cvar_SetValue("g_doWarmup", savedDoWarmup);
 			savedDoWarmup = -1;
+		}
+
+		if (savedAllowVote >= 0) {
+			Cvar_SetValue("g_allowVote", savedAllowVote);
+			savedAllowVote = -1;
 		}
 
 		if (savedTimelimit >= 0) {
