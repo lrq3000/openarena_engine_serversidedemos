@@ -64,6 +64,7 @@ static int savedGametype = -1;
 
 static int savedDoWarmup = -1;
 static int savedAllowVote = -1;
+static int savedTeamAutoJoin = -1;
 
 static int savedTimelimit = -1;
 static int savedFraglimit = -1;
@@ -77,6 +78,7 @@ static char *savedPlaybackDemoname = savedPlaybackDemonameVal;
 
 static qboolean keepSaved = qfalse; // var that memorizes if we keep the new maxclients and democlients values (in the case that we restart the map/server for these cvars to be affected since they are latched, we need to stop the playback meanwhile we restart, and using this var we can know if the stop is a restart procedure or a real demo end) or if we can restore them (at the end of the demo)
 
+static int demoTeamAutoJoin = -1; // load the g_teamAutoJoin value from the demo recording
 
 
 /***********************************************
@@ -847,18 +849,25 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	// DEMOCLIENT INITIAL TEAM MANAGEMENT
 	// Note: it is more interoperable to do team management here than in configstrings because here we have the team name as a string, so we can directly issue it in a "team" clientCommand
 	// Note2: this function is only necessary to set the initial team for democlients (the team they were at first when the demo started), for all the latter team changes, the clientCommands are recorded and will be replayed
-	if (userinfo && strlen(userinfo) && strlen(svdnewteam) &&
-	    ( !strlen(svdoldteam) || (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) && // if there was no team for this player before OR if the new team is different
-	    sv_gametype->integer != GT_TOURNAMENT // if it's tournament, playing players shouldn't send a team command, else they will be set back to spectator waiting queue (and so they won't be spectatable anymore)!
-	    ) {
-		// If the democlient changed team, we manually issue a team change (workaround by using a clientCommand team)
-		Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
-		SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
+	if ( sv_gametype->integer != GT_TOURNAMENT ) { // if it's tournament, playing democlients shouldn't send a team command, else they will be set back to spectator waiting queue (and so they won't be spectatable anymore)!) FIXME: all democlients (even spec) will be spectatable, but how to fix that when clients can have an empty team?
+		if (userinfo && strlen(userinfo) && strlen(svdnewteam) &&
+		    ( !strlen(svdoldteam) || (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) // if there was no team for this player before OR if the new team is different
+		    ) {
+			// If the democlient changed team, we manually issue a team change (workaround by using a clientCommand team)
+			Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
+			SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
 
-	} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo)) {
-		// Else if the democlient had no team and the new userinfo still has no field, probably the democlient is a spectator and shouldn't be followed. FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
-		Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i spectator\n", num);
-		SV_ExecuteClientCommand(client, "team spectator", qtrue); // send to spectator the client (prevent the democlient from being followed)
+		} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo) ) { // old and new team are not specified in the previous and current userinfo, but a userinfo is present
+			// Else if the democlient has no team specified, it's probably because he just has connected and so he is set to the default team by the gamecode depending on the gamecode: for >= GT_TEAM it's spectator, for all the others non-team based gametypes it's direcly in-game
+			// FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
+			if (sv_gametype->integer >= GT_TEAM && demoTeamAutoJoin <= 0) { // if it's a team-based gametype, by default players are spectators (unless g_teamAutoJoin was set)
+				Com_DPrintf("DebugGBOclientUserinfo: TeamChange default: %i spectator\n", num);
+				SV_ExecuteClientCommand(client, "team spectator", qtrue); // send to spectator the client (prevent the democlient from being followed)
+			} else { // else by default they join the game
+				Com_DPrintf("DebugGBOclientUserinfo: TeamChange default: %i random team (team_free)\n", num);
+				SV_ExecuteClientCommand(client, "team o", qtrue);
+			}
+		}
 	}
 
 	//free( userinfo );
@@ -1202,6 +1211,9 @@ void SV_DemoStartRecord(void)
 	// Write capturelimit
 	MSG_WriteString(&msg, "capturelimit");
 	MSG_WriteLong(&msg, Cvar_VariableIntegerValue("capturelimit"));
+	// Write g_teamAutoJoin (will allow to know what was the default initial team for newly connected players)
+	MSG_WriteString(&msg, "g_teamAutoJoin");
+	MSG_WriteLong(&msg, Cvar_VariableIntegerValue("g_teamAutoJoin"));
 	// Write sv_hostname (only for info)
 	MSG_WriteString(&msg, "hostname");
 	MSG_WriteString(&msg, sv_hostname->string);
@@ -1441,6 +1453,10 @@ void SV_DemoStartPlayback(void)
 			// set the demo setting
 			Cvar_SetValue("capturelimit", capturelimit); // Note: unnecessary for the demo to be replayed, but allows to show the limit in the HUD. FIXME: if the limit is changed during the game, the new value won't be reflected in the demo (but the demo will continue to play to its integrality)
 
+		} else if ( !strcmp(metadata, "g_teamAutoJoin") ) {
+			// reading g_teamAutoJoin and storing it
+			demoTeamAutoJoin = MSG_ReadLong(&msg);
+
 		// Additional infos (not necessary to replay a demo)
 		} else if ( !strcmp(metadata, "hostname") ) {
 			// reading sv_hostname (additional info)
@@ -1467,6 +1483,14 @@ void SV_DemoStartPlayback(void)
 	}
 	// Remove g_allowVote (prevent players to call a vote while a map is replaying)
 	Cvar_SetValue("g_allowVote", 0);
+
+	// g_teamAutoJoin
+	if (!keepSaved) {
+		// Memorize g_teamAutoJoin
+		savedTeamAutoJoin = Cvar_VariableIntegerValue("g_teamAutoJoin");
+	}
+	// Remove g_teamAutoJoin (prevent players to call a vote while a map is replaying)
+	Cvar_SetValue("g_teamAutoJoin", 0);
 
 
 
@@ -1658,6 +1682,12 @@ void SV_DemoStopPlayback(void)
 			Cvar_SetValue("g_allowVote", savedAllowVote);
 			savedAllowVote = -1;
 		}
+
+		if (savedTeamAutoJoin >= 0) {
+			Cvar_SetValue("g_teamAutoJoin", savedTeamAutoJoin);
+			savedTeamAutoJoin = -1;
+		}
+		demoTeamAutoJoin = -1;
 
 		if (savedTimelimit >= 0) {
 			Cvar_SetValue("timelimit", savedTimelimit);
