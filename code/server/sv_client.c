@@ -706,6 +706,12 @@ void SV_ClientEnterWorld( client_t *client, usercmd_t *cmd ) {
 	Com_DPrintf( "Going from CS_PRIMED to CS_ACTIVE for %s\n", client->name );
 	client->state = CS_ACTIVE;
 
+	// server-side demo playback: prevent players from joining the game when a demo is replaying (particularly if the gametype is non-team based, by default the gamecode force players to join in)
+	if (sv.demoState == DS_PLAYBACK &&
+	    ( (client - svs.clients) >= sv_democlients->integer ) && ( (client - svs.clients) < sv_maxclients->integer ) ) { // check that it's a real player
+		SV_ExecuteClientCommand(client, "team spectator", qtrue);
+	}
+
 	// resend all configstrings using the cs commands since these are
 	// no longer sent when the client is CS_PRIMED
 	SV_UpdateConfigstrings( client );
