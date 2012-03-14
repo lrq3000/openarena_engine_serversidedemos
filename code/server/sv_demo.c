@@ -466,11 +466,15 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 
 	Com_DPrintf("DGBO SV_DemoWriteClientUserinfo: %i %s\n", client - svs.clients, userinfo);
 
-	Q_strncpyz(fuserinfo, userinfo, sizeof(fuserinfo)); // copy the client's userinfo to another storage var, so that we don't modify the client's userinfo (else the filtering will clean its infos such as cl_guid and ip, and next map change the client will be disconnected because of a wrong guid/ip!)
+	Q_strncpyz(fuserinfo, userinfo, sizeof(fuserinfodata)); // copy the client's userinfo to another storage var, so that we don't modify the client's userinfo (else the filtering will clean its infos such as cl_guid and ip, and next map change the client will be disconnected because of a wrong guid/ip!)
+
+	Com_DPrintf("DGBO SV_DemoWriteClientUserinfo2: %i %s\n", client - svs.clients, fuserinfo);
 
 	if (strlen(userinfo) > 0) { // do the filtering only if the string is not empty
 		SV_DemoFilterClientUserinfo( fuserinfo ); // filters out privacy keys such as ip, cl_guid, cl_voip
 	}
+
+	Com_DPrintf("DGBO SV_DemoWriteClientUserinfo3: %i %s\n", client - svs.clients, fuserinfo);
 
 	MSG_Init(&msg, buf, sizeof(buf));
 	MSG_WriteByte(&msg, demo_clientUserinfo); // write the event marker
@@ -711,7 +715,7 @@ void SV_DemoReadConfigString( msg_t *msg )
 SV_DemoReadClientConfigString
 
 Read a demo client configstring from a message, load it into memory and broadcast changes to gamecode and clients
-This function also manages demo clients connections and team changes (which are normally totally handled by the gamecode, so we can't directly access nor store these events in the demo, we must use clever ways to reproduce them at the right time)
+This function also manages demo clientbegin at connections and teamchange (which are normally totally handled by the gamecode, so we can't directly access nor store these events in the demo, we must use clever ways to reproduce them at the right time)
 ====================
 */
 void SV_DemoReadClientConfigString( msg_t *msg )
@@ -743,39 +747,29 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 		client = &svs.clients[num];
 
+		/* DEPRECATED: moved to userinfo
 		int svdoldteam;
 		int svdnewteam;
 		svdoldteam = strlen(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) ? atoi(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) : -1; // affect the new team if detected, else if an empty string is returned, just set -1 (will allow us to detect that there's really no team change instead of having 0 which is TEAM_FREE)
 		svdnewteam = strlen(Info_ValueForKey(configstring, "t")) ? atoi(Info_ValueForKey(configstring, "t")) : -1;
+		*/
 
 		// Set the client configstring (using a standard Q3 function)
 		SV_SetConfigstring(CS_PLAYERS + num, configstring);
 
 		// Set some infos about this user:
 		svs.clients[num].demoClient = qtrue; // to check if a client is a democlient, you can either rely on this variable, either you can check if num (index of client) is >= CS_PLAYERS + sv_democlients->integer && < CS_PLAYERS + sv_maxclients->integer (if it's not a configstring, remove CS_PLAYERS from your if)
-		strcpy( svs.clients[num].name, Info_ValueForKey( configstring, "n" ) ); // set the name (useful for internal functions such as status_f). We use strcpy to copy a const char* to a char[32] (an array, so we need this function) // FIXME: extracted normally from userinfo?
+		Q_strncpyz( svs.clients[num].name, Info_ValueForKey( configstring, "n" ), MAX_NAME_LENGTH ); // set the name (useful for internal functions such as status_f). Anyway userinfo will automatically set both name (server-side) and netname (gamecode-side).
 		//svs.clients[num].state or client->state = CS_ACTIVE; // SHOULD NOT SET CS_ACTIVE! Else the engine will try to communicate with these clients, and will produce the following error: Server crashed: netchan queue is not properly initialized in SV_Netchan_TransmitNextFragment
 
-		//NET_StringToAdr("localhost", &svs.clients[num].netchan.remoteAddress, NA_UNSPEC); // NA_UNSPEC
-		//svs.clients[num].netchan.remoteAddress = ip;
-		//svs.clients[num].lastPacketTime = svs.time;
-		//svs.clients[num].netchan.remoteAddress.type = NA_LOOPBACK; // or NA_BOT
-		//svs.clients[num].netchan.remoteAddress.type = NA_BOT;
-		//svs.clients[num].rate = 16384;
 
+		// DEMOCLIENT INITIAL TEAM MANAGEMENT
+		// Note: needed only to set the initial team of the democlients, subsequent team changes are directly handled by their clientCommands
+		// DEPRECATED: moved to userinfo, more interoperable (because here team is an int, while in userinfo the full team name string is stored and can be directly replayed)
 		/*
-		// Update userinfo
-		client = &svs.clients[num];
-		Q_strncpyz( client->userinfo, configstring, sizeof(client->userinfo) );
-		SV_UserinfoChanged( client );
-		// call prog code to allow overrides
-		//VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, client - svs.clients );
-		*/
-
-		// DEMOCLIENT TEAM MANAGEMENT
 		if (configstring && strlen(configstring) && svdnewteam >= TEAM_FREE && svdnewteam < TEAM_NUM_TEAMS &&
 		    ( svdoldteam == -1 || (svdoldteam != svdnewteam && svdnewteam != -1) ) && // if there was no team for this player before or if the new team is different
-		    !strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) ) {  // TOFIX: Also here we check that the democlient is not a bot by looking if the skill var exists: if it's a bot, setting all bots to their right team will make the gamecode crash (g_restarted set to 1), but I couldn't locate where the problem comes from (maybe the system tries to send them some packets?). Anyway, we don't really care that bots get set to the right team, they will anyway be replayed. But players will be ok.
+		    ) {
 			// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
 			char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
 
@@ -790,21 +784,12 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 				strcpy(svdnewteamstr, "spectator");
 			}
 
-			Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr)); // in fact, doing "team free" for any client will produce a curious effect: the client will always be put to the right team by the gamecode.
-			SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
-
-			VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // Normally, team switching force a ClientBegin to occur, but on some rare occasions it doesn't, so better issue it by ourselves to make sure
-
-		//} else if (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" ))) {
-			//SV_ExecuteClientCommand(&svs.clients[num], "team free", qtrue);
-		} else { // clientbegin needs only to be issued if the team wasn't changed (team changing already takes care of issuing a clientbegin)
-			VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
+			Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
+			SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client - note: in fact, setting any team (except spectator) will make the engine set the client to a random team, but it's only sessionTeam! so the democlients will still be shown in the right team on the scoreboard, but the engine will consider them in a random team (this has no concrete adverse effect to the demo to my knowledge)
 		}
+		*/
 
-		//client = &svs.clients[num];
-		//SV_ClientEnterWorld(client, &client->lastUsercmd);
-		//SV_SendClientGameState( client );
-		//VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
+		VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // Make sure the gamecode consider the democlients (this will allow to show them on the scoreboard and make them spectatable with a standard follow) - does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
 	} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], configstring) && strlen(sv.configstrings[CS_PLAYERS + num]) && (!configstring || !strlen(configstring)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore, we drop him (also we check that the old config was not empty, else we would be disconnecting a player who is already dropped)
 		Com_DPrintf("DebugGBOclientConfigString: disconnection %i\n", num);
 		client = &svs.clients[num];
@@ -826,13 +811,13 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 SV_DemoReadClientUserinfo
 
 Read a demo client userinfo string from a message, load it into memory, fills client_t fields by parsing the userinfo and broacast the change to the gamecode and clients
-Note: do not try to do democlient team management here, it's a lot more reliable with configstrings.
+Note: this function also manage the initial team of democlients when demo recording has started. Subsequent team changes will be directly handled by clientCommands "team"
 ====================
 */
 void SV_DemoReadClientUserinfo( msg_t *msg )
 {
 	client_t *client;
-	char	*userinfo;
+	char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
 	int num;
 
 	Cmd_SaveCmdContext();
@@ -843,12 +828,10 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, userinfo, svs.clients[num].userinfo);
 
 	// Get the old and new team for the client
-	/*
-	char *svdoldteam = malloc( 10 * sizeof *svdoldteam );
-	char *svdnewteam = malloc( 10 * sizeof *svdnewteam );
-	strcpy(svdoldteam, Info_ValueForKey(client->userinfo, "team"));
-	strcpy(svdnewteam, Info_ValueForKey(userinfo, "team"));
-	*/
+	char *svdoldteam = malloc( MAX_NAME_LENGTH * sizeof *svdoldteam );
+	char *svdnewteam = malloc( MAX_NAME_LENGTH * sizeof *svdnewteam );
+	Q_strncpyz(svdoldteam, Info_ValueForKey(client->userinfo, "team"), MAX_NAME_LENGTH);
+	Q_strncpyz(svdnewteam, Info_ValueForKey(userinfo, "team"), MAX_NAME_LENGTH);
 
 	//Com_DPrintf("DebugGBOclientUserinfo2: oldteam: %s newteam: %s - strlen(userinfo): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(userinfo), strlen(svdnewteam));
 
@@ -857,16 +840,22 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	//Com_DPrintf("DebugGBOclientUserinfo3: strlen(userinfo): %i strlen(newteam): %i\n", strlen(userinfo), strlen(svdnewteam));
 	//Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, userinfo, svs.clients[num].userinfo);
 
-	// DEMOCLIENT TEAM MANAGEMENT
-	/* MOVED TO CLIENT CONFIGSTRINGS (more reliable)
-	if (userinfo && strlen(userinfo) && strlen(svdnewteam) ) {
-		// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
-		if ( !strlen(svdoldteam) || strcmp(svdoldteam, svdnewteam) ) { // if there was no team for this player before or if the new team is different
-			SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
-			Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
-		}
+	Com_DPrintf("DebugGBOclientUserinfo3: COND: userinfo:%s strlenui:%i strlennewteam:%i strlenold:%i strcmp:%i fulllastcond:%i \n", userinfo, strlen(userinfo), strlen(svdnewteam), strlen(svdoldteam), strcmp(svdoldteam, svdnewteam), (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)));
+
+	// DEMOCLIENT INITIAL TEAM MANAGEMENT
+	// If the democlient changed team, we manually issue a team change (workaround by using a clientCommand team)
+	if (userinfo && strlen(userinfo) && strlen(svdnewteam) &&
+	    ( !strlen(svdoldteam) || (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) // if there was no team for this player before OR if the new team is different
+	    ) {
+		Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
+		SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
+	// Else if the democlient had no team and the new userinfo still has no field, probably the democlient is a spectator and shouldn't be followed. FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
+	} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo)) {
+		Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i spectator\n", num);
+		SV_ExecuteClientCommand(client, "team spectator", qtrue); // send to spectator the client (prevent the democlient from being followed)
 	}
-	*/
+
+	//free( userinfo );
 
 	Cmd_RestoreCmdContext();
 }
@@ -1572,12 +1561,13 @@ void SV_DemoStartPlayback(void)
 	}
 	*/
 
-	// Force all real clients to be set to spectator team
+	// Force all real clients already connected before the demo begins to be set to spectator team
 	for (i = sv_democlients->integer; i < sv_maxclients->integer; i++) {
 		//SV_ExecuteClientCommand(&svs.clients[i], "team spectator", qtrue);
 		//SV_SendServerCommand(&svs.clients[i], "forceteam %i spectator", i);
 		if (svs.clients[i].state >= CS_CONNECTED) { // Only set as spectator a player that is at least connected (or primed or active)
-			Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
+			SV_ExecuteClientCommand(&svs.clients[i], "team spectator", qtrue); // should be more interoperable than a forceteam
+			//Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
 		}
 	}
 
