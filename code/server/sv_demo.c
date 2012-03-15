@@ -824,9 +824,12 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
 	int num;
 
+	// Save context
 	Cmd_SaveCmdContext();
+	// Get client
 	num = MSG_ReadBits(msg, CLIENTNUM_BITS);
 	client = &svs.clients[num];
+	// Get userinfo
 	userinfo = MSG_ReadString(msg);
 
 	Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, userinfo, svs.clients[num].userinfo);
@@ -839,6 +842,7 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 
 	//Com_DPrintf("DebugGBOclientUserinfo2: oldteam: %s newteam: %s - strlen(userinfo): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(userinfo), strlen(svdnewteam));
 
+	// Update the userinfo for both the server and gamecode
 	Cmd_TokenizeString( va("userinfo %s", userinfo) ); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
 	SV_UpdateUserinfo_f(client); // will update the server userinfo, automatically fill client_t fields and then transmit to the gamecode and call ClientUserinfoChanged() which will also update the gamecode's client_t from the new userinfo (eg: name [server-side] and netname [gamecode-side] will be both updated)
 	//Com_DPrintf("DebugGBOclientUserinfo3: strlen(userinfo): %i strlen(newteam): %i\n", strlen(userinfo), strlen(svdnewteam));
@@ -870,8 +874,12 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 		}
 	}
 
-	//free( userinfo );
+	// Free memory
+	free( userinfo );
+	free( svdoldteam );
+	free( svdnewteam );
 
+	// Restore context
 	Cmd_RestoreCmdContext();
 }
 
@@ -1411,14 +1419,14 @@ void SV_DemoStartPlayback(void)
 
 		} else if ( !strcmp(metadata, "fs_game") ) {
 			// reading fs_game (mod name)
-			strcpy(fs, MSG_ReadString(&msg));
+			Q_strncpyz(fs, MSG_ReadString(&msg), MAX_QPATH);
 			if (strlen(fs)){
 				Com_Printf("DEMO: Warning: this demo was recorded for the following mod: %s\n", fs);
 			}
 
 		} else if ( !strcmp(metadata, "map") ) {
 			// reading map (from the demo)
-			strcpy(map, MSG_ReadString(&msg));
+			Q_strncpyz(map, MSG_ReadString(&msg), MAX_QPATH);
 			if (!FS_FOpenFileRead(va("maps/%s.bsp", map), NULL, qfalse))
 			{
 				Com_Printf("Map does not exist: %s.\n", map);
@@ -1460,11 +1468,11 @@ void SV_DemoStartPlayback(void)
 		// Additional infos (not necessary to replay a demo)
 		} else if ( !strcmp(metadata, "hostname") ) {
 			// reading sv_hostname (additional info)
-			strcpy(hostname, MSG_ReadString(&msg));
+			Q_strncpyz(hostname, MSG_ReadString(&msg), MAX_NAME_LENGTH);
 
 		} else if ( !strcmp(metadata, "datetime") ) {
 			// reading datetime
-			strcpy(datetime, MSG_ReadString(&msg));
+			Q_strncpyz(datetime, MSG_ReadString(&msg), 1024);
 		}
 	}
 
@@ -1611,6 +1619,13 @@ void SV_DemoStartPlayback(void)
 			//Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
 		}
 	}
+
+	// Free memory
+	free( map );
+	free( fs );
+	free( hostname );
+	free( datetime );
+	free( metadata );
 
 	// Start reading the first frame
 	Com_Printf("Playing demo %s.\n", sv.demoName); // log that the demo is started here
