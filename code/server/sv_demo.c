@@ -1628,7 +1628,7 @@ void SV_DemoStartPlayback(void)
 		//SV_SendServerCommand(&svs.clients[i], "forceteam %i spectator", i);
 		if (svs.clients[i].state >= CS_CONNECTED) { // Only set as spectator a player that is at least connected (or primed or active)
 			SV_ExecuteClientCommand(&svs.clients[i], "team spectator", qtrue); // should be more interoperable than a forceteam
-			//Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i));
+			Cbuf_ExecuteText(EXEC_NOW, va("forceteam %i spectator", i)); // sometimes team spectator does not work when a demo is replayed client-side with some mods (eg: ExcessivePlus), in this case we also issue a forceteam (even if it's less interoperable)
 		}
 	}
 
