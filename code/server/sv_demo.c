@@ -96,14 +96,14 @@ Check that the clientCommand is OK (if not we either continue with a more specia
 */
 qboolean SV_CheckClientCommand( client_t *client, const char *cmd )
 {
-	char *userinfo = ""; // init with an empty string so that the compiler doesn't shout errors
-
-	if ( !strncmp(cmd, "userinfo", 8) ) { // If that's a userinfo command, we directly handle that with a specialized function
-		strncpy(userinfo, cmd+9, strlen(cmd)-9); // trimming out the "userinfo " substring (because we only need the userinfo string)
+	if ( !Q_strncmp(cmd, "userinfo", 8) ) { // If that's a userinfo command, we directly handle that with a specialized function
+		char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
+		Q_strncpyz(userinfo, cmd+9, MAX_INFO_STRING); // trimming out the "userinfo " substring (because we only need the userinfo string)
 		SV_DemoWriteClientUserinfo(client, (const char*)userinfo); // passing relay to the specialized function for this job
+		free( userinfo );
 
 		return qfalse; // we return false if the check wasn't right (meaning that this function does not need to process anything)
-	} else if( !strncmp(cmd, "tell", 4) || !strncmp(cmd, "say_team", 8) ) { // Privacy check: if the command is tell or say_team, we just drop it
+	} else if( !Q_strncmp(cmd, "tell", 4) || !Q_strncmp(cmd, "say_team", 8) ) { // Privacy check: if the command is tell or say_team, we just drop it
 		return qfalse;
 	}
 	return qtrue; // else, the check is OK and we continue to process with the original function
@@ -118,7 +118,7 @@ Check that the serverCommand is OK (or if we drop it because already handled som
 */
 qboolean SV_CheckServerCommand( const char *cmd )
 {
-	if ( !strncmp(cmd, "print", 5) || !strncmp(cmd, "cp", 2) || !strncmp(cmd, "disconnect", 10) ) { // If that's a print/cp command, it's already handled by gameCommand (here it's a redundancy). FIXME? possibly some print/cp are not handled by gameCommand? From my tests it was ok, but if someday a few prints are missing, try to delete this check... For security, we also drop disconnect (even if it should not be recorded anyway in the first place), because server commands will be sent to every connected clients, and so it will disconnect everyone.
+	if ( !Q_strncmp(cmd, "print", 5) || !Q_strncmp(cmd, "cp", 2) || !Q_strncmp(cmd, "disconnect", 10) ) { // If that's a print/cp command, it's already handled by gameCommand (here it's a redundancy). FIXME? possibly some print/cp are not handled by gameCommand? From my tests it was ok, but if someday a few prints are missing, try to delete this check... For security, we also drop disconnect (even if it should not be recorded anyway in the first place), because server commands will be sent to every connected clients, and so it will disconnect everyone.
 		return qfalse; // we return false if the check wasn't right
 	}
 	return qtrue; // else, the check is OK and we continue to process with the original function
@@ -140,7 +140,7 @@ qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore )
 	//Com_DPrintf("DGBOCheckLastCmdTEST: cprevcmd:%s cnewcmd:%s\n", SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS));
 
 	if ( !onlyStore && // if we only want to store, we skip any checking
-	    strlen(prevcmd) > 0 && !strcmp(SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS)) ) { // check that the previous cmd was different from the current cmd.
+	    strlen(prevcmd) > 0 && !Q_stricmp(SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS)) ) { // check that the previous cmd was different from the current cmd.
 		Com_DPrintf("DGBOCheckLastCmd: prevcmd:%s\n", prevcmd);
 		Com_DPrintf("DGBOCheckLastCmd: cmd:%s\n", cmd);
 		return qfalse; // drop this command, it's a repetition of the previous one
@@ -162,9 +162,9 @@ qboolean SV_CheckGameCommand( const char *cmd )
 	if ( !SV_CheckLastCmd( cmd, qfalse ) ) { // check that the previous cmd was different from the current cmd. The engine may send the same command to every client by their cid (one command per client) instead of just sending one command to all using NULL or -1.
 		return qfalse; // drop this command, it's a repetition of the previous one
 	} else {
-		if ( !strncmp(cmd, "chat", 4) || !strncmp(cmd, "tchat", 5) ) { // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that it itself fetch the name from client->name
+		if ( !Q_strncmp(cmd, "chat", 4) || !Q_strncmp(cmd, "tchat", 5) ) { // we filter out the chat and tchat commands which are recorded and handled directly by clientCommand (which is easier to manage because it makes a difference between say, say_team and tell, which we don't have here in gamecommands: we either have chat(for say and tell) or tchat (for say_team) and the other difference is that chat/tchat messages directly contain the name of the player, while clientCommand only contains the clientid, so that it itself fetch the name from client->name
 			return qfalse; // we return false if the check wasn't right
-		} else if ( !strncmp(cmd, "cs", 2) ) { // if it's a configstring command, we handle that with the specialized function
+		} else if ( !Q_strncmp(cmd, "cs", 2) ) { // if it's a configstring command, we handle that with the specialized function
 			Cmd_SaveCmdContext();
 			Cmd_TokenizeString(cmd);
 			Com_DPrintf("DGBOGameCommand to ConfigString1: %s\n", cmd);
@@ -651,7 +651,7 @@ void SV_DemoReadClientCommand( msg_t *msg )
 	cmd = MSG_ReadString(msg);
 	//Cmd_TokenizeString(cmd);
 	Com_DPrintf("DebugGBOclientCommand: %i %s\n", num, cmd);
-	if ( ! (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) && !strncmp(cmd, "team", 4) ) ) { // FIXME: to prevent bots from setting their team (which crash the demo), we prevent them from sending team commands
+	if ( ! (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) && !Q_strncmp(cmd, "team", 4) ) ) { // FIXME: to prevent bots from setting their team (which crash the demo), we prevent them from sending team commands
 		SV_ExecuteClientCommand(&svs.clients[num], cmd, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
 	}
 	Cmd_RestoreCmdContext(); // Restore the context (tokenized strings)
@@ -682,7 +682,7 @@ void SV_DemoReadGameCommand( msg_t *msg )
 	num = MSG_ReadByte(msg);
 	cmd = MSG_ReadString(msg);
 	Cmd_TokenizeString(cmd);
-	if (strcmp(Cmd_Argv(0), "tinfo")) // too much spamming of tinfo (hud team overlay infos) - don't need those to debug
+	if (Q_stricmp(Cmd_Argv(0), "tinfo")) // too much spamming of tinfo (hud team overlay infos) - don't need those to debug
 		Com_DPrintf("DebugGBOgameCommand: %i %s \n", num, cmd);
 	//VM_Call(gvm, GAME_DEMO_COMMAND, num);
 	if ( SV_CheckLastCmd( cmd, qfalse ) ) { // check for duplicates: check that the engine did not already send this very same message resulting from an event (this means that engine gamecommands are never filtered, only demo gamecommands)
@@ -746,7 +746,7 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 	/**** DEMOCLIENTS CONNECTION MANAGEMENT  ****/
 	// This part manages when a client should begin or be dropped based on the configstrings. This is a workaround because begin and disconnect events are managed in the gamecode, so we here use a clever way to know when these events happen (this is based on a careful reading of how work the mechanisms that manage players in a real game, so this should be OK in any case).
 	// Note: this part could also be used in userinfo instead of client configstrings (but since DropClient automatically sets userinfo to null, which is not the case the other way around, this way was preferred)
-	if ( strcmp(sv.configstrings[CS_PLAYERS + num], configstring) && configstring && strlen(configstring) ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
+	if ( Q_stricmp(sv.configstrings[CS_PLAYERS + num], configstring) && configstring && strlen(configstring) ) { // client begin or just changed team: previous configstring and new one are different, and the new one is not null
 		Com_DPrintf("DebugGBOclientConfigString: begin %i\n", num);
 
 		client = &svs.clients[num];
@@ -804,7 +804,7 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 		}
 
 		VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // Make sure the gamecode consider the democlients (this will allow to show them on the scoreboard and make them spectatable with a standard follow) - does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
-	} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], configstring) && strlen(sv.configstrings[CS_PLAYERS + num]) && (!configstring || !strlen(configstring)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore, we drop him (also we check that the old config was not empty, else we would be disconnecting a player who is already dropped)
+	} else if ( Q_stricmp(sv.configstrings[CS_PLAYERS + num], configstring) && strlen(sv.configstrings[CS_PLAYERS + num]) && (!configstring || !strlen(configstring)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore, we drop him (also we check that the old config was not empty, else we would be disconnecting a player who is already dropped)
 		Com_DPrintf("DebugGBOclientConfigString: disconnection %i\n", num);
 		client = &svs.clients[num];
 		SV_DropClient( client, "disconnected" ); // or SV_Disconnect_f(client);
@@ -858,14 +858,14 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	//Com_DPrintf("DebugGBOclientUserinfo3: strlen(userinfo): %i strlen(newteam): %i\n", strlen(userinfo), strlen(svdnewteam));
 	//Com_DPrintf("DebugGBOclientUserinfo: %i %s - %s\n", num, userinfo, svs.clients[num].userinfo);
 
-	Com_DPrintf("DebugGBOclientUserinfo3: COND: userinfo:%s strlenui:%i strlennewteam:%i strlenold:%i strcmp:%i fulllastcond:%i \n", userinfo, strlen(userinfo), strlen(svdnewteam), strlen(svdoldteam), strcmp(svdoldteam, svdnewteam), (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)));
+	Com_DPrintf("DebugGBOclientUserinfo3: COND: userinfo:%s strlenui:%i strlennewteam:%i strlenold:%i strcmp:%i fulllastcond:%i \n", userinfo, strlen(userinfo), strlen(svdnewteam), strlen(svdoldteam), Q_stricmp(svdoldteam, svdnewteam), (Q_stricmp(svdoldteam, svdnewteam) && strlen(svdnewteam)));
 
 	// DEMOCLIENT INITIAL TEAM MANAGEMENT
 	// Note: it is more interoperable to do team management here than in configstrings because here we have the team name as a string, so we can directly issue it in a "team" clientCommand
 	// Note2: this function is only necessary to set the initial team for democlients (the team they were at first when the demo started), for all the latter team changes, the clientCommands are recorded and will be replayed
 	if ( sv_gametype->integer != GT_TOURNAMENT ) { // if it's tournament, playing democlients shouldn't send a team command, else they will be set back to spectator waiting queue (and so they won't be spectatable anymore)!) FIXME: all democlients (even spec) will be spectatable, but how to fix that when clients can have an empty team?
 		if (userinfo && strlen(userinfo) && strlen(svdnewteam) &&
-		    ( !strlen(svdoldteam) || (strcmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) // if there was no team for this player before OR if the new team is different
+		    ( !strlen(svdoldteam) || (Q_stricmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) // if there was no team for this player before OR if the new team is different
 		    ) {
 			// If the democlient changed team, we manually issue a team change (workaround by using a clientCommand team)
 			Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
@@ -1374,14 +1374,14 @@ void SV_DemoStartPlayback(void)
 	// Reading meta-data (infos about the demo)
 	// Note: we read with an if statement, so that if in the future we add more meta datas, older demos which haven't these meta datas will still be replayable
 	metadata = "";
-	while( strcmp(metadata, "endMeta")  )
+	while( Q_stricmp(metadata, "endMeta")  )
 	{
 		metadata = MSG_ReadString( &msg ); // We read the meta data marker
 
-		if ( !strcmp(metadata, "endMeta") ) { // if the string is the special endMeta string, we already break
+		if ( !Q_stricmp(metadata, "endMeta") ) { // if the string is the special endMeta string, we already break
 			break;
 
-		} else if ( !strcmp(metadata, "clients") ) { // democlients
+		} else if ( !Q_stricmp(metadata, "clients") ) { // democlients
 			// Check slots, time and map
 			clients = MSG_ReadBits(&msg, CLIENTNUM_BITS); // number of democlients (sv_maxclients at the time of the recording)
 			if (sv_maxclients->integer < clients || // if we have less real slots than democlients slots or
@@ -1406,7 +1406,7 @@ void SV_DemoStartPlayback(void)
 				//return;
 			}
 
-		} else if ( !strcmp(metadata, "time") ) { // server time
+		} else if ( !Q_stricmp(metadata, "time") ) { // server time
 			// reading server time (from the demo)
 			time = MSG_ReadLong(&msg);
 			if (time < 400)
@@ -1415,28 +1415,28 @@ void SV_DemoStartPlayback(void)
 				SV_DemoStopPlayback();
 				return;
 			}
-		} else if ( !strcmp(metadata, "sv_fps") ) {
+		} else if ( !Q_stricmp(metadata, "sv_fps") ) {
 			// reading sv_fps (from the demo)
 			fps = MSG_ReadLong(&msg);
 			if ( sv_fps->integer != fps ) {
 				savedFPS = sv_fps->integer;
 				Cvar_SetValue("sv_fps", fps);
 			}
-		} else if ( !strcmp(metadata, "g_gametype") ) {
+		} else if ( !Q_stricmp(metadata, "g_gametype") ) {
 			// reading g_gametype (from the demo)
 			gametype = MSG_ReadLong(&msg);
 			// memorize the current gametype
 			if ( !keepSaved )
 				savedGametype = sv_gametype->integer; // save the gametype before switching
 
-		} else if ( !strcmp(metadata, "fs_game") ) {
+		} else if ( !Q_stricmp(metadata, "fs_game") ) {
 			// reading fs_game (mod name)
 			Q_strncpyz(fs, MSG_ReadString(&msg), MAX_QPATH);
 			if (strlen(fs)){
 				Com_Printf("DEMO: Warning: this demo was recorded for the following mod: %s\n", fs);
 			}
 
-		} else if ( !strcmp(metadata, "map") ) {
+		} else if ( !Q_stricmp(metadata, "map") ) {
 			// reading map (from the demo)
 			Q_strncpyz(map, MSG_ReadString(&msg), MAX_QPATH);
 			if (!FS_FOpenFileRead(va("maps/%s.bsp", map), NULL, qfalse))
@@ -1446,7 +1446,7 @@ void SV_DemoStartPlayback(void)
 				return;
 			}
 
-		} else if ( !strcmp(metadata, "timelimit") ) {
+		} else if ( !Q_stricmp(metadata, "timelimit") ) {
 			// reading initial timelimit
 			timelimit = MSG_ReadLong(&msg);
 			// memorize the current timelimit
@@ -1455,7 +1455,7 @@ void SV_DemoStartPlayback(void)
 			// set the demo setting
 			Cvar_SetValue("timelimit", timelimit); // Note: setting the timelimit is NOT necessary for the demo to be replayed (in fact even if the timelimit is reached, the demo will still continue to feed new frames and thus force the game to continue, without any bug - also to the opposite, if the timelimit is too high, the game will be finished when the demo will replay the events, even if the timelimit is not reached but was in the demo, it will be when replaying the demo), but setting it allows for timelimit warning and suddenDeath voice announcement to happen. FIXME: if the timelimit is changed during the game, it won't be reflected in the demo (but the demo will still continue to play, or stop if the game is won).
 
-		} else if ( !strcmp(metadata, "fraglimit") ) {
+		} else if ( !Q_stricmp(metadata, "fraglimit") ) {
 			// reading initial fraglimit
 			fraglimit = MSG_ReadLong(&msg);
 			// memorize the current fraglimit
@@ -1464,7 +1464,7 @@ void SV_DemoStartPlayback(void)
 			// set the demo setting
 			Cvar_SetValue("fraglimit", fraglimit); // Note: unnecessary for the demo to be replayed, but allows to show the limit in the HUD. FIXME: if the limit is changed during the game, the new value won't be reflected in the demo (but the demo will continue to play to its integrality)
 
-		} else if ( !strcmp(metadata, "capturelimit") ) {
+		} else if ( !Q_stricmp(metadata, "capturelimit") ) {
 			// reading initial capturelimit
 			capturelimit = MSG_ReadLong(&msg);
 			// memorize the current capturelimit
@@ -1473,16 +1473,16 @@ void SV_DemoStartPlayback(void)
 			// set the demo setting
 			Cvar_SetValue("capturelimit", capturelimit); // Note: unnecessary for the demo to be replayed, but allows to show the limit in the HUD. FIXME: if the limit is changed during the game, the new value won't be reflected in the demo (but the demo will continue to play to its integrality)
 
-		} else if ( !strcmp(metadata, "g_teamAutoJoin") ) {
+		} else if ( !Q_stricmp(metadata, "g_teamAutoJoin") ) {
 			// reading g_teamAutoJoin and storing it
 			demoTeamAutoJoin = MSG_ReadLong(&msg);
 
 		// Additional infos (not necessary to replay a demo)
-		} else if ( !strcmp(metadata, "hostname") ) {
+		} else if ( !Q_stricmp(metadata, "hostname") ) {
 			// reading sv_hostname (additional info)
 			Q_strncpyz(hostname, MSG_ReadString(&msg), MAX_NAME_LENGTH);
 
-		} else if ( !strcmp(metadata, "datetime") ) {
+		} else if ( !Q_stricmp(metadata, "datetime") ) {
 			// reading datetime
 			Q_strncpyz(datetime, MSG_ReadString(&msg), 1024);
 		}
@@ -1520,8 +1520,8 @@ void SV_DemoStartPlayback(void)
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
 	// FIXME? why sv_cheats is needed?
-	if ( !com_sv_running->integer || strcmp(sv_mapname->string, map) ||
-	    strcmp(Cvar_VariableString("fs_game"), fs) ||
+	if ( !com_sv_running->integer || Q_stricmp(sv_mapname->string, map) ||
+	    Q_stricmp(Cvar_VariableString("fs_game"), fs) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") ||
 	    (time < sv.time && !keepSaved) || // if the demo initial time is below server time AND we didn't already restart for demo playback, then we must restart to reinit the server time (because else, it might happen that the server time is still above demo time if the demo was recorded during a warmup time, in this case we won't restart the demo playback but just iterate a few demo frames in the void to catch up the server time, see below the else statement)
 	    sv_maxclients->modified ||
@@ -1541,8 +1541,8 @@ void SV_DemoStartPlayback(void)
 		Cvar_SetValue("sv_autoDemo", 0); // disable sv_autoDemo else it will start a recording before we can replay a demo (since we restart the map)
 
 		// **** Automatic mod (fs_game) switching management ****
-		if ( ( strcmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
-		    (!strlen(fs) && strcmp(Cvar_VariableString("fs_game"), fs) && strcmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
+		if ( ( Q_stricmp(Cvar_VariableString("fs_game"), fs) && strlen(fs) ) ||
+		    (!strlen(fs) && Q_stricmp(Cvar_VariableString("fs_game"), fs) && Q_stricmp(fs, BASEGAME) ) ) { // change the game mod only if necessary - if it's different from the current gamemod and the new is not empty, OR the new is empty but it's not BASEGAME and it's different (we're careful because it will restart the game engine and so probably every client will get disconnected)
 
 			// Memorize the current mod (only if we are indeed switching mod, otherwise we will save basegame instead of empty strings and force a mod switching when stopping the demo when we haven't changed mod in the first place!)
 			if (strlen(Cvar_VariableString("fs_game"))) { // if fs_game is not "", we save it

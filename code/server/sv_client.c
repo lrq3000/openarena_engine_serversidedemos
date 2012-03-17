@@ -1517,7 +1517,7 @@ void SV_ExecuteClientCommand( client_t *cl, const char *s, qboolean clientOK ) {
 				SV_DemoWriteClientCommand( cl, s );
 			} else if ( sv.demoState == DS_PLAYBACK &&
 				   ( (cl - svs.clients) >= sv_democlients->integer ) && ( (cl - svs.clients) < sv_maxclients->integer ) && // preventing only real clients commands (not democlients commands replayed)
-				   ( !strcmp(Cmd_Argv(0), "team") && strcmp(Cmd_Argv(1), "s") && strcmp(Cmd_Argv(1), "spectator") ) ) { // if there is a demo playback, we prevent any real client from doing a team change, if so, we issue a chat messsage (except if the player join team spectator again)
+				   ( !Q_stricmp(Cmd_Argv(0), "team") && Q_stricmp(Cmd_Argv(1), "s") && Q_stricmp(Cmd_Argv(1), "spectator") ) ) { // if there is a demo playback, we prevent any real client from doing a team change, if so, we issue a chat messsage (except if the player join team spectator again)
 				SV_SendServerCommand(cl, "chat \"^3Can't join a team when a demo is replaying!\""); // issue a chat message only to the player trying to join a team
 				SV_SendServerCommand(cl, "cp \"^3Can't join a team when a demo is replaying!\""); // issue a chat message only to the player trying to join a team
 				return;
