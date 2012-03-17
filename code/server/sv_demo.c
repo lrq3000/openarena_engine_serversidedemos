@@ -751,12 +751,10 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 		client = &svs.clients[num];
 
-		/* DEPRECATED: moved to userinfo
 		int svdoldteam;
 		int svdnewteam;
 		svdoldteam = strlen(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) ? atoi(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) : -1; // affect the new team if detected, else if an empty string is returned, just set -1 (will allow us to detect that there's really no team change instead of having 0 which is TEAM_FREE)
 		svdnewteam = strlen(Info_ValueForKey(configstring, "t")) ? atoi(Info_ValueForKey(configstring, "t")) : -1;
-		*/
 
 		// Set the client configstring (using a standard Q3 function)
 		SV_SetConfigstring(CS_PLAYERS + num, configstring);
@@ -770,28 +768,40 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 		// DEMOCLIENT INITIAL TEAM MANAGEMENT
 		// Note: needed only to set the initial team of the democlients, subsequent team changes are directly handled by their clientCommands
 		// DEPRECATED: moved to userinfo, more interoperable (because here team is an int, while in userinfo the full team name string is stored and can be directly replayed)
-		/*
-		if (configstring && strlen(configstring) && svdnewteam >= TEAM_FREE && svdnewteam < TEAM_NUM_TEAMS &&
-		    ( svdoldteam == -1 || (svdoldteam != svdnewteam && svdnewteam != -1) ) && // if there was no team for this player before or if the new team is different
-		    ) {
-			// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
-			char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
+		if ( sv_gametype->integer != GT_TOURNAMENT ) {
+			if ( !strlen(Info_ValueForKey(svs.clients[num].userinfo, "team")) ) {
+				if (configstring && strlen(configstring) &&
+				    ( svdoldteam == -1 || (svdoldteam != svdnewteam && svdnewteam != -1) ) // if there was no team for this player before or if the new team is different
+				    ) {
+					// If the client changed team, we manually issue a team change (workaround by using a clientCommand team)
+					char *svdnewteamstr = malloc( 10 * sizeof *svdnewteamstr );
 
-			// copy/paste of TeamName in g_team.c (because it's a function in the gamecode and we can't access it)
-			if (svdnewteam == TEAM_FREE) {
-				strcpy(svdnewteamstr, "free");
-			} else if (svdnewteam == TEAM_RED) {
-				strcpy(svdnewteamstr, "red");
-			} else if (svdnewteam == TEAM_BLUE) {
-				strcpy(svdnewteamstr, "blue");
-			} else if (svdnewteam == TEAM_SPECTATOR) {
-				strcpy(svdnewteamstr, "spectator");
+					// copy/paste of TeamName in g_team.c (because it's a function in the gamecode and we can't access it)
+					/*
+					if (svdnewteam == TEAM_FREE) {
+						strcpy(svdnewteamstr, "free");
+					} else if (svdnewteam == TEAM_RED) {
+						strcpy(svdnewteamstr, "red");
+					} else if (svdnewteam == TEAM_BLUE) {
+						strcpy(svdnewteamstr, "blue");
+					} else if (svdnewteam == TEAM_SPECTATOR) {
+						strcpy(svdnewteamstr, "spectator");
+					}
+					*/
+					if (svdnewteam == TEAM_SPECTATOR) {
+						strcpy(svdnewteamstr, "spectator");
+					} else {
+						strcpy(svdnewteamstr, "o"); // random string
+					}
+
+
+					Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
+					SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client - note: in fact, setting any team (except spectator) will make the engine set the client to a random team, but it's only sessionTeam! so the democlients will still be shown in the right team on the scoreboard, but the engine will consider them in a random team (this has no concrete adverse effect to the demo to my knowledge)
+
+					free( svdnewteamstr );
+				}
 			}
-
-			Com_DPrintf("DebugGBOclientConfigstring: TeamChange: %i %s\n", num, va("team %s", svdnewteamstr));
-			SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client - note: in fact, setting any team (except spectator) will make the engine set the client to a random team, but it's only sessionTeam! so the democlients will still be shown in the right team on the scoreboard, but the engine will consider them in a random team (this has no concrete adverse effect to the demo to my knowledge)
 		}
-		*/
 
 		VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // Make sure the gamecode consider the democlients (this will allow to show them on the scoreboard and make them spectatable with a standard follow) - does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
 	} else if ( strcmp(sv.configstrings[CS_PLAYERS + num], configstring) && strlen(sv.configstrings[CS_PLAYERS + num]) && (!configstring || !strlen(configstring)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore, we drop him (also we check that the old config was not empty, else we would be disconnecting a player who is already dropped)
@@ -861,7 +871,9 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 			Com_DPrintf("DebugGBOclientUserinfo: TeamChange: %i %s\n", num, va("team %s", svdnewteam));
 			SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
 
-		} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo) ) { // old and new team are not specified in the previous and current userinfo, but a userinfo is present
+		} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo) &&
+			   !strlen(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) // FIXME? is this condition going to prevent this code from being ever executed? (but the code works, it was tested)
+			   ) { // old and new team are not specified in the previous and current userinfo, but a userinfo is present
 			// Else if the democlient has no team specified, it's probably because he just has connected and so he is set to the default team by the gamecode depending on the gamecode: for >= GT_TEAM it's spectator, for all the others non-team based gametypes it's direcly in-game
 			// FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
 			if (sv_gametype->integer >= GT_TEAM && demoTeamAutoJoin <= 0) { // if it's a team-based gametype, by default players are spectators (unless g_teamAutoJoin was set)
