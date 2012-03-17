@@ -96,7 +96,7 @@ Check that the clientCommand is OK (if not we either continue with a more specia
 */
 qboolean SV_CheckClientCommand( client_t *client, const char *cmd )
 {
-	if ( !Q_strncmp(cmd, "userinfo", 8) ) { // If that's a userinfo command, we directly handle that with a specialized function
+	if ( strlen(cmd) > 9 && !Q_strncmp(cmd, "userinfo", 8) ) { // If that's a userinfo command, we directly handle that with a specialized function (and we check that it contains at least 10 characters so that when we copy the string we don't end up copying a random address in memory)
 		char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
 		Q_strncpyz(userinfo, cmd+9, MAX_INFO_STRING); // trimming out the "userinfo " substring (because we only need the userinfo string)
 		SV_DemoWriteClientUserinfo(client, (const char*)userinfo); // passing relay to the specialized function for this job
