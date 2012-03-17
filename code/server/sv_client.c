@@ -1659,6 +1659,12 @@ static void SV_UserMove( client_t *cl, msg_t *msg, qboolean delta ) {
 		oldcmd = cmd;
 	}
 
+	// save the data to the server-side demo if recording
+	/*
+	if (sv.demoState == DS_RECORDING)
+			SV_DemoWriteClientUsercmd(cl, delta, cmdCount, cmds, key);
+	*/
+
 	// save time for ping calculation
 	cl->frames[ cl->messageAcknowledge & PACKET_MASK ].messageAcked = svs.time;
 

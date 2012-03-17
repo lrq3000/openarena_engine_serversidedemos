@@ -62,9 +62,9 @@ typedef struct {
 
 	int			svFlags;			// SVF_NOCLIENT, SVF_BROADCAST, etc
 
-	// only send to this client when SVF_SINGLECLIENT is set
+	// only send to this client when SVF_SINGLECLIENT is set	
 	// if SVF_CLIENTMASK is set, use bitmask for clients to send to (maxclients must be <= 32, up to the mod to enforce this)
-	int			singleClient;
+	int			singleClient;		
 
 	qboolean	bmodel;				// if false, assume an explicit mins / maxs bounding box
 									// only set by trap_SetBrushModel
@@ -196,7 +196,7 @@ typedef enum {
 	// if it is not passed to linkentity.  If the size, position, or
 	// solidity changes, it must be relinked.
 
-	G_UNLINKENTITY,		// ( gentity_t *ent );
+	G_UNLINKENTITY,		// ( gentity_t *ent );		
 	// call before removing an interactive entity
 
 	G_ENTITIES_IN_BOX,	// ( const vec3_t mins, const vec3_t maxs, gentity_t **list, int maxcount );
@@ -226,7 +226,7 @@ typedef enum {
 
 	G_TRACECAPSULE,	// ( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 	G_ENTITY_CONTACTCAPSULE,	// ( const vec3_t mins, const vec3_t maxs, const gentity_t *ent );
-
+	
 	// 1.32
 	G_FS_SEEK,
 
@@ -387,9 +387,7 @@ typedef enum {
 	BOTLIB_PC_LOAD_SOURCE,
 	BOTLIB_PC_FREE_SOURCE,
 	BOTLIB_PC_READ_TOKEN,
-	BOTLIB_PC_SOURCE_FILE_AND_LINE,
-
-	G_DEMO_COMMAND
+	BOTLIB_PC_SOURCE_FILE_AND_LINE
 
 } gameImport_t;
 
@@ -427,7 +425,6 @@ typedef enum {
 	// The game can issue trap_argc() / trap_argv() commands to get the command
 	// and parameters.  Return qfalse if the game doesn't recognize it as a command.
 
-	BOTAI_START_FRAME,				// ( int time );
-
-	GAME_DEMO_COMMAND         // ( int cmd, const char *string );
+	BOTAI_START_FRAME				// ( int time );
 } gameExport_t;
+

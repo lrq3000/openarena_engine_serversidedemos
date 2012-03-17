@@ -36,7 +36,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // Headers/markers for demo messages (events)
 typedef enum {
+	demo_endDemo, // end of demo (close the demo)
+	demo_EOF, // end of file/flux (end of event, separator, notify the demo parser to iterate to the next event of the _same_ frame)
 	demo_endFrame, // player and gentity state marker (recorded each end of frame, hence the name) - at the same time marks the end of the demo frame
+
 	demo_configString, // config string setting event
 	demo_clientConfigString, // client config string setting event
 	demo_clientCommand, // client command event
@@ -46,8 +49,8 @@ typedef enum {
 	demo_entityState, // gentity_t->entityState_t management
 	demo_entityShared, // gentity_t->entityShared_t management
 	demo_playerState, // players game state event (playerState_t management)
-	demo_endDemo, // end of demo event (close the demo)
-	demo_EOF, // end of file/flux event (end of event, separator, notify the demo parser to iterate to the next event of the _same_ frame)
+
+	//demo_clientUsercmd, // players commands/movements packets (usercmd_t management)
 } demo_ops_e;
 
 /*** STATIC VARIABLES ***/
@@ -489,6 +492,44 @@ void SV_DemoWriteClientUserinfo( client_t *client, const char *userinfo )
 
 /*
 ====================
+SV_DemoWriteClientUsercmd
+
+Write a client usercmd_t for the current packet (called from sv_client.c SV_UserMove) which contains the movements commands for the player
+Note: this is unnecessary to make players move, this is handled by entities management. This is only used to add more data to the dama for data analysis AND avoid inactivity timer activation
+====================
+*/
+/*
+void SV_DemoWriteClientUsercmd( client_t *cl, qboolean delta, int cmdCount, usercmd_t *cmds, int key )
+{
+	msg_t msg;
+	usercmd_t nullcmd;
+	usercmd_t *cmd, *oldcmd;
+	int i;
+
+	//Com_Printf("DebugGBOWriteusercmd: %i\n", cl - svs.clients);
+
+	MSG_Init(&msg, buf, sizeof(buf));
+	MSG_WriteByte(&msg, demo_clientUsercmd);
+	MSG_WriteBits(&msg, cl - svs.clients, CLIENTNUM_BITS);
+	if (delta)
+		MSG_WriteByte(&msg, 1);
+	else
+		MSG_WriteByte(&msg, 0);
+	MSG_WriteByte(&msg, cmdCount);
+
+	Com_Memset( &nullcmd, 0, sizeof(nullcmd) );
+	oldcmd = &nullcmd;
+	for ( i = 0 ; i < cmdCount ; i++ ) {
+		cmd = &cmds[i];
+		MSG_WriteDeltaUsercmdKey( &msg, key, oldcmd, cmd );
+		oldcmd = cmd;
+	}
+	SV_DemoWriteMessage(&msg);
+}
+*/
+
+/*
+====================
 SV_DemoWriteAllEntityShared
 
 Write all active clients playerState (playerState_t)
@@ -647,11 +688,10 @@ void SV_DemoReadClientCommand( msg_t *msg )
 
 	Cmd_SaveCmdContext(); // Save the context (tokenized strings) so that the engine can continue its usual processing normally just after this function
 	num = MSG_ReadBits(msg, CLIENTNUM_BITS);
-	//client = SV_GameClientNum(num);
 	cmd = MSG_ReadString(msg);
 	//Cmd_TokenizeString(cmd);
 	Com_DPrintf("DebugGBOclientCommand: %i %s\n", num, cmd);
-	if ( ! (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) && !Q_strncmp(cmd, "team", 4) ) ) { // FIXME: to prevent bots from setting their team (which crash the demo), we prevent them from sending team commands
+	if ( ! (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) && !Q_strncmp(cmd, "team", 4) ) ) {
 		SV_ExecuteClientCommand(&svs.clients[num], cmd, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
 	}
 	Cmd_RestoreCmdContext(); // Restore the context (tokenized strings)
@@ -863,7 +903,7 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	// DEMOCLIENT INITIAL TEAM MANAGEMENT
 	// Note: it is more interoperable to do team management here than in configstrings because here we have the team name as a string, so we can directly issue it in a "team" clientCommand
 	// Note2: this function is only necessary to set the initial team for democlients (the team they were at first when the demo started), for all the latter team changes, the clientCommands are recorded and will be replayed
-	if ( sv_gametype->integer != GT_TOURNAMENT ) { // if it's tournament, playing democlients shouldn't send a team command, else they will be set back to spectator waiting queue (and so they won't be spectatable anymore)!) FIXME: all democlients (even spec) will be spectatable, but how to fix that when clients can have an empty team?
+	if ( sv_gametype->integer != GT_TOURNAMENT ) { // if it's tournament, playing democlients shouldn't send a team command, else they will be set back to spectator waiting queue (and so they won't be spectatable anymore)!) FIXME: all democlients (even spec) will be spectatable, but how to fix that when clients can have an empty team (at connection, until they issue a team clientCommand)?
 		if (userinfo && strlen(userinfo) && strlen(svdnewteam) &&
 		    ( !strlen(svdoldteam) || (Q_stricmp(svdoldteam, svdnewteam) && strlen(svdnewteam)) ) // if there was no team for this player before OR if the new team is different
 		    ) {
@@ -872,7 +912,7 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 			SV_ExecuteClientCommand(client, va("team %s", svdnewteam), qtrue); // workaround to force the server's gamecode and clients to update the team for this client
 
 		} else if (!strlen(svdoldteam) && !strlen(svdnewteam) && strlen(userinfo) &&
-			   !strlen(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t")) // FIXME? is this condition going to prevent this code from being ever executed? (but the code works, it was tested)
+			   !strlen(Info_ValueForKey(sv.configstrings[CS_PLAYERS + num], "t"))
 			   ) { // old and new team are not specified in the previous and current userinfo, but a userinfo is present
 			// Else if the democlient has no team specified, it's probably because he just has connected and so he is set to the default team by the gamecode depending on the gamecode: for >= GT_TEAM it's spectator, for all the others non-team based gametypes it's direcly in-game
 			// FIXME? If you are trying to port this patch and weirdly some democlients are visible in scoreboard but can't be followed, try to uncomment these lines
@@ -894,6 +934,33 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	// Restore context
 	Cmd_RestoreCmdContext();
 }
+
+/*
+====================
+SV_DemoReadClientUsercmd
+
+Read the usercmd_t for a democlient and restituate the movements - this is NOT needed to make democlients move, this is handled by entities management, but it should avoid inactivity timer to activate and can be used for demo analysis
+====================
+*/
+/*
+void SV_DemoReadClientUsercmd( msg_t *msg )
+{
+	int num, deltaint;
+	qboolean delta;
+
+	Cmd_SaveCmdContext(); // Save the context (tokenized strings) so that the engine can continue its usual processing normally just after this function
+	num = MSG_ReadBits(msg, CLIENTNUM_BITS);
+	deltaint = MSG_ReadByte(msg);
+	if (deltaint)
+		delta = qtrue;
+	else
+		delta = qfalse;
+	//cmdCount = MSG_ReadByte(msg);
+	//Com_Printf("DebugGBOReadusercmd: %i\n", num);
+	SV_UserMove(&svs.clients[num], msg, delta);
+	Cmd_RestoreCmdContext(); // Restore the context (tokenized strings)
+}
+*/
 
 /*
 ====================
@@ -1125,6 +1192,11 @@ read_next_demo_event: // used to read next demo event
 				case demo_entityShared: // gentity_t->entityShared_t management (see g_local.h for more infos)
 					SV_DemoReadAllEntityShared( &msg );
 					break;
+				/*
+				case demo_clientUsercmd:
+					SV_DemoReadClientUsercmd( &msg );
+					break;
+				*/
 				case demo_endFrame: // end of the frame - players and entities game status update: we commit every demo entity to the server, update the server time, then release the demo frame reading here to the next server (and demo) frame
 					// Update entities
 					SV_DemoReadRefreshEntities(); // load into memory the demo entities (overwriting any change the game may have done)
@@ -1206,7 +1278,7 @@ void SV_DemoStartRecord(void)
 	MSG_Init(&msg, buf, sizeof(buf));
 
 	// Write number of clients (sv_maxclients < MAX_CLIENTS or else we can't playback)
-	MSG_WriteString(&msg, "clients"); // for each demo meta data (infos about the demo), we prepend the name of the var (this allows for fault tolerance and retrocompatibility)
+	MSG_WriteString(&msg, "clients"); // for each demo meta data (infos about the demo), we prepend the name of the var (this allows for fault tolerance and retrocompatibility) - FIXME? We could also use MSG_LookaheadByte() to read a byte, instead of a string, this would save a tiny bit of storage space
 	MSG_WriteBits(&msg, sv_maxclients->integer, CLIENTNUM_BITS);
 	// Write current server in-game time
 	MSG_WriteString(&msg, "time");
@@ -1332,7 +1404,7 @@ void SV_DemoStartPlayback(void)
 {
 	msg_t msg;
 	int r, time, i, clients, fps, gametype, timelimit, fraglimit, capturelimit;
-	//int num; // FIXME: useless variables
+
 	char *map = malloc( MAX_QPATH * sizeof *map );
 	char *fs = malloc( MAX_QPATH * sizeof *fs );
 	char *hostname = malloc( MAX_NAME_LENGTH * sizeof *hostname );
@@ -1520,7 +1592,7 @@ void SV_DemoStartPlayback(void)
 		Com_Printf("DEMO: Details of %s recorded %s on server \"%s\": sv_fps: %i initial_servertime: %i clients: %i fs_game: %s g_gametype: %i map: %s timelimit: %i fraglimit: %i capturelimit: %i \n", sv.demoName, datetime, hostname, fps, time, clients, fs, gametype, map, timelimit, fraglimit, capturelimit);
 
 	// Checking if all initial conditions from the demo are met (map, sv_fps, gametype, servertime, etc...)
-	// FIXME? why sv_cheats is needed?
+	// FIXME? why sv_cheats is needed? Just to be able to use cheats commands to pass through walls?
 	if ( !com_sv_running->integer || Q_stricmp(sv_mapname->string, map) ||
 	    Q_stricmp(Cvar_VariableString("fs_game"), fs) ||
 	    !Cvar_VariableIntegerValue("sv_cheats") ||
@@ -1528,9 +1600,7 @@ void SV_DemoStartPlayback(void)
 	    sv_maxclients->modified ||
 	    (sv_gametype->integer != gametype && !(gametype == GT_SINGLE_PLAYER && sv_gametype->integer == GT_FFA) ) // check for gametype change (need a restart to take effect since it's a latched var) AND check that the gametype difference is not between SinglePlayer and DM/FFA, which are in fact the same gametype (and the server will automatically change SinglePlayer to FFA, so we need to detect that and ignore this automatic change)
 	   ) {
-		/// Change to the right map and start the demo with a hardcoded 10 seconds delay
-		// FIXME: this should not be a hardcoded value, there should be a way to ensure that the map fully restarted before continuing. And this can NOT be based on warmup, because if warmup is set to 0 (disabled), then you'll have no delay, and a delay is necessary! If the demo starts replaying before the map is restarted, it will simply do nothing.
-		// delay command is here used as a workaround for waiting until the map is fully restarted
+		/// Change to the right map/maxclients/mod and restart the demo playback at the next SV_Frame() iteration
 
 		//Cvar_SetValue("sv_democlients", 0); // necessary to stop the playback, else it will produce an error since the demo has not yet started!
 		keepSaved = qtrue; // Declare that we want to keep the value saved (and we don't want to restore them now, because the demo hasn't started yet!)
@@ -1562,7 +1632,7 @@ void SV_DemoStartPlayback(void)
 		Com_DPrintf("DEMODEBUG loadtestsaved: savedFsGame:%s savedGametype:%i\n", savedFsGame, savedGametype);
 		Com_DPrintf("DEMODEBUG loadtestsaved2: fs_game:%s loaded_fs_game:%s\n", Cvar_VariableString("fs_game"), fs);
 
-		Cbuf_AddText(va("g_gametype %i\ndevmap %s\n", gametype, map)); // Change gametype and map (using devmap to enable cheats). FIXME: is devmap and cheats enabled really necessary?
+		Cbuf_AddText(va("g_gametype %i\ndevmap %s\n", gametype, map)); // Change gametype and map (using devmap to enable cheats).
 		//Cbuf_AddText(va("g_gametype %i\ndevmap %s\ndelay 10000 %s\n", gametype, map, Cmd_Cmd()));
 		//Cmd_ExecuteString(va("devmap %s\ndelay 10000 %s\n", s, Cmd_Cmd())); // another way to do it, I think it would be preferable to use cmd_executestring, but it doesn't work (dunno why)
 		//Cbuf_AddText(va("devmap %s\ndelay %d %s\n", s, Cvar_VariableIntegerValue("g_warmup") * 1000, Cmd_Cmd())); // Old tremfusion way to do it, which is bad way when g_warmup is 0, you get no delay
