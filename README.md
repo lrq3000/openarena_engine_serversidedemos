@@ -47,13 +47,16 @@ Special cvars:
 * sv_democlients : show number of democlients (automatically managed, this is a read-only cvar)
 * sv_demoState : show the current demo state (0: none, 1: waiting to play a demo, 2: demo playback, 3: waiting to stop a demo, 4: demo recording)
 
+DEV NOTES
+---------
+
+* In msg.c: if ( cl_shownet && ...  IS necessary for the patch to work, else without this consistency check the engine will crash when trying to replay a demo on a server (but it will still work on a client!)
+put this as a separate patch for ioquake3
+
+* usercmd_t management (players movement commands simulation) is implemented but commented out. It fully works, but it's not necessary for the demo functionnalities, and it adds a LOT of data to the demo file, so demo files take a lot more harddrive space when this function is enabled. If you want to do demo analysis, it is advised to turn on this feature, else you should probably not.
+
 TODO
 ----
-
-* Fix inactivity timers (simulate UserMove or just send a fake usercmd_t) -> should fix the bot is away from keyboard with ExcessivePlus: how is based inactivity? lastcmd?
-Temporary workaround: set g_inactivity to 0 and xp_inactivitySpectator 0 when replaying a demo
-SV_ExecuteClientMessage() -> SV_UserMove() -> SV_ClientThink set lastUsercmd = cmd (given as param) -> VM_Call(GAME_CLIENT_THINK) -> ClientThink() (gamecode) get SV_GetUsercmd() which gives lastUsercmd and clientthink sets &ent->client->pers.cmd with this, also lastCmdTime with level.time so that there's no phone jack. -> ClientThink_real -> ClientInactivityTimer()
-SV_UserMove() -> MSG_ReadDeltaUsercmdKey()
 
 * SV_DemoChangeMaxClients() does not consider privateclients reserved slots when moving clients (eg: with 2 privateslots: 2 -> 12 -> 0)
 
@@ -63,6 +66,7 @@ SV_UserMove() -> MSG_ReadDeltaUsercmdKey()
 
 SHOULD DO (but not now)
 -----------------------
+
 * please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case)
 
 * many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
@@ -70,6 +74,8 @@ SHOULD DO (but not now)
 * when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
 * Delagsimulation when replaying a demo to see in the "eye of the beholder". Probably should be done as a gamecode modification, either at recording by storing the client-side world state after delag, or by simulating the delag at replaying from demo and pings infos (already recorded normally).
+
+* Fix inactivity timers (simulate UserMove or just send a fake usercmd_t)
 
 KNOWN BUGS (WONT FIX FOR NOW)
 -----------------------------
