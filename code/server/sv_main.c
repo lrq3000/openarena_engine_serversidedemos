@@ -1152,11 +1152,12 @@ void SV_Frame( int msec ) {
 		// let everything in the world think and move
 		VM_Call (gvm, GAME_RUN_FRAME, sv.time);
 
-		if (sv.demoState == DS_RECORDING)
+		// play/record demo frame (if enabled)
+		if (sv.demoState == DS_RECORDING) // Record the frame
 			SV_DemoWriteFrame();
-		else if (sv.demoState == DS_WAITINGPLAYBACK || Cvar_VariableIntegerValue("sv_demoState") == DS_WAITINGPLAYBACK)
+		else if (sv.demoState == DS_WAITINGPLAYBACK || Cvar_VariableIntegerValue("sv_demoState") == DS_WAITINGPLAYBACK) // Launch again the playback of the demo (because we needed a restart in order to set some cvars such as sv_maxclients or fs_game)
 			SV_DemoRestartPlayback();
-		else if (sv.demoState == DS_PLAYBACK)
+		else if (sv.demoState == DS_PLAYBACK) // Play the next demo frame
 			SV_DemoReadFrame();
 	}
 

@@ -39,29 +39,6 @@ cmd_t		cmd_text;
 byte		cmd_text_buf[MAX_CMD_BUFFER];
 
 
-// Delay stuff
-
-#define MAX_DELAYED_COMMANDS    64
-#define CMD_DELAY_FRAME_FIRE 1
-#define CMD_DELAY_UNUSED 0
-
-typedef enum
-{
-  CMD_DELAY_MSEC,
-  CMD_DELAY_FRAME
-} cmdDelayType_t;
-
-typedef struct
-{
-        char    name[MAX_CMD_LINE];
-        char    text[MAX_CMD_LINE];
-        int     delay;
-        cmdDelayType_t 	type;
-} delayed_cmd_s;
-
-delayed_cmd_s delayed_cmd[MAX_DELAYED_COMMANDS];
-
-
 //=============================================================================
 
 /*
@@ -253,52 +230,6 @@ void Cbuf_Execute (void)
 /*
 ==============================================================================
 
-						COMMANDS DELAYING
-
-==============================================================================
-*/
-
-/*
-===============
-Cdelay_Frame
-===============
-*/
-
-void Cdelay_Frame( void ) {
-	int i;
-	int sys_time = Sys_Milliseconds();
-	qboolean run_it;
-
-	for(i=0; (i<MAX_DELAYED_COMMANDS); i++)
-	{
-		run_it = qfalse;
-
-		if(delayed_cmd[i].delay == CMD_DELAY_UNUSED)
-			continue;
-
-		//check if we should run the command (both type)
-		if(delayed_cmd[i].type == CMD_DELAY_MSEC && delayed_cmd[i].delay < sys_time)
-		{
-			run_it = qtrue;
-		} else if(delayed_cmd[i].type == CMD_DELAY_FRAME)
-		{
-			delayed_cmd[i].delay --;
-			if(delayed_cmd[i].delay == CMD_DELAY_FRAME_FIRE)
-				run_it = qtrue;
-		}
-
-		if(run_it)
-		{
-			delayed_cmd[i].delay = CMD_DELAY_UNUSED;
-			Cbuf_ExecuteText(EXEC_NOW, delayed_cmd[i].text);
-		}
-	}
-}
-
-
-/*
-==============================================================================
-
 						SCRIPT COMMANDS
 
 ==============================================================================
@@ -370,141 +301,6 @@ void Cmd_Echo_f (void)
 	Com_Printf ("%s\n", Cmd_Args());
 }
 
-/*
-===============
-Cmd_Undelay_f
-
-Removes a pending delay with a given name
-===============
-*/
-void Cmd_Undelay_f (void)
-{
-	int i;
-	char *find, *limit;
-
-	// Check if the call is valid
-	if(Cmd_Argc () < 1)
-	{
-		Com_Printf ("undelay <name> (command)\nremoves all commands with <name> in them.\nif (command) is specified, the removal will be limited only to delays whose commands contain (command).\n");
-		return;
-	}
-
-	find = Cmd_Argv(1);
-	limit = Cmd_Argv(2);
-
-	for(i=0; (i<MAX_DELAYED_COMMANDS); i++)
-	{
-		if(delayed_cmd[i].delay != CMD_DELAY_UNUSED && strstr(delayed_cmd[i].name, find) && strstr(delayed_cmd[i].text, limit))  // the limit test will always pass if limit is a null string
-		{
-			delayed_cmd[i].delay = CMD_DELAY_UNUSED;
-		}
-	}
-}
-
-
-/*
-===============
-Cmd_UndelayAll_f
-
-Removes all pending delays
-===============
-*/
-void Cmd_UndelayAll_f (void)
-{
-	int i;
-
-	for(i=0; (i<MAX_DELAYED_COMMANDS); i++)
-	{
-		delayed_cmd[i].delay = CMD_DELAY_UNUSED;
-	}
-}
-
-/*
-===============
-Cmd_Delay_f
-
-Delays a comand
-===============
-*/
-void Cmd_Delay_f (void)
-{
-	int i, delay, type, lastchar;
-	char *raw_delay, *name, *cmd;
-	qboolean availiable_cmd = qfalse;
-
-	// Check if the call is valid
-	if(Cmd_Argc () < 2)
-	{
-		Com_Printf ("delay (name) <delay in milliseconds> <command>\ndelay <delay in frames>f <command>\nexecutes <command> after the delay\n");
-		return;
-	}
-
-	raw_delay = Cmd_Argv(1);
-	if(!isdigit(raw_delay[0]))
-	{
-		name = raw_delay;
-		raw_delay = Cmd_Argv(2);
-		cmd = Cmd_ArgsFrom(3);
-	}
-	else
-	{
-		name = "";
-		cmd = Cmd_ArgsFrom(2);
-	}
-	delay = atoi(raw_delay);
-
-	if(delay < 1)
-	{
-		Com_Printf ("delay: the delay must be a positive integer");
-		return;
-	}
-
-	//search for an unused slot
-	for(i=0; (i<MAX_DELAYED_COMMANDS); i++)
-	{
-		if(delayed_cmd[i].delay == CMD_DELAY_UNUSED)
-		{
-			availiable_cmd = qtrue;
-			break;
-		}
-	}
-
-	if(!availiable_cmd)
-	{
-		Com_Printf ("WARNING: Maximum amount of delayed commands reached.");
-		return;
-	}
-
-	lastchar = strlen( raw_delay ) - 1;
-
-	if(raw_delay[ lastchar ] == 'f' )
-	{
-		delay += CMD_DELAY_FRAME_FIRE;
-		type = CMD_DELAY_FRAME;
-	}else{
-		type = CMD_DELAY_MSEC;
-		delay += Sys_Milliseconds();
-	}
-
-	delayed_cmd[i].delay = delay;
-	delayed_cmd[i].type = type;
-	Q_strncpyz(delayed_cmd[i].text, cmd, MAX_CMD_LINE);
-	Q_strncpyz(delayed_cmd[i].name, name, MAX_CMD_LINE);
-}
-
-/*
-============
-Cmd_DelayCompletion
-============
-*/
-void	Cmd_DelayCompletion( void(*callback)(const char *s) ) {
-	int i;
-
-	for (i = 0; i < MAX_DELAYED_COMMANDS; i++) {
-		if (delayed_cmd[i].delay != CMD_DELAY_UNUSED)
-			callback(delayed_cmd[i].name);
-	}
-}
 
 /*
 =============================================================================
@@ -1029,34 +825,6 @@ void Cmd_CompleteCfgName( char *args, int argNum ) {
 }
 
 /*
-==================
-Cmd_CompleteDelay
-==================
-*/
-void Cmd_CompleteDelay( char *args, int argNum )
-{
-	if( argNum == 3 || argNum == 4 )
-	{
-		// Skip "delay "
-		char *p = Com_SkipTokens( args, 1, " " );
-
-		if( p > args )
-			Field_CompleteCommand( p, qtrue, qtrue );
-	}
-}
-
-/*
-==================
-Cmd_CompleteUnDelay
-==================
-*/
-void Cmd_CompleteUnDelay( char *args, int argNum ) {
-	if( argNum == 2 ) {
-		Field_CompleteDelay( );
-	}
-}
-
-/*
 ============
 Cmd_Init
 ============
@@ -1069,9 +837,4 @@ void Cmd_Init (void) {
 	Cmd_SetCommandCompletionFunc( "vstr", Cvar_CompleteCvarName );
 	Cmd_AddCommand ("echo",Cmd_Echo_f);
 	Cmd_AddCommand ("wait", Cmd_Wait_f);
-	Cmd_AddCommand ("delay", Cmd_Delay_f);
-	Cmd_SetCommandCompletionFunc( "delay", Cmd_CompleteDelay );
-	Cmd_AddCommand ("undelay", Cmd_Undelay_f);
-	Cmd_SetCommandCompletionFunc( "undelay", Cmd_CompleteUnDelay );
-	Cmd_AddCommand ("undelayAll", Cmd_UndelayAll_f);
 }

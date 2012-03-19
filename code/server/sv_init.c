@@ -111,14 +111,6 @@ void SV_SetConfigstring (int index, const char *val) {
 		Com_Error (ERR_DROP, "SV_SetConfigstring: bad index %i\n", index);
 	}
 
-	/*
-	// Don't allow the game to overwrite demo player configstrings
-	// FIXME: maybe it prevents when replaying to really set the democlient configstrings since it's this function that is called?
-	if ( sv.demoState == DS_PLAYBACK && index >= CS_PLAYERS && index < CS_PLAYERS + sv_democlients->integer ) { // if (!force && sv.demoState == DS_PLAYBACK && ...
-		return;
-	}
-	*/
-
 	if ( !val ) {
 		val = "";
 	}
@@ -308,13 +300,79 @@ static void SV_Startup( void ) {
 	NET_JoinMulticast6();
 }
 
-
 /*
 ==================
 SV_ChangeMaxClients
 ==================
 */
 void SV_ChangeMaxClients( void ) {
+	int		oldMaxClients;
+	int		i;
+	client_t	*oldClients;
+	int		count;
+
+	// get the highest client number in use
+	count = 0;
+	for ( i = 0 ; i < sv_maxclients->integer ; i++ ) {
+		if ( svs.clients[i].state >= CS_CONNECTED ) {
+			if (i > count)
+				count = i;
+		}
+	}
+	count++;
+
+	oldMaxClients = sv_maxclients->integer;
+	// never go below the highest client number in use
+	SV_BoundMaxClients( count );
+	// if still the same
+	if ( sv_maxclients->integer == oldMaxClients ) {
+		return;
+	}
+
+	oldClients = Hunk_AllocateTempMemory( count * sizeof(client_t) );
+	// copy the clients to hunk memory
+	for ( i = 0 ; i < count ; i++ ) {
+		if ( svs.clients[i].state >= CS_CONNECTED ) {
+			oldClients[i] = svs.clients[i];
+		}
+		else {
+			Com_Memset(&oldClients[i], 0, sizeof(client_t));
+		}
+	}
+
+	// free old clients arrays
+	Z_Free( svs.clients );
+
+	// allocate new clients
+	svs.clients = Z_Malloc ( sv_maxclients->integer * sizeof(client_t) );
+	Com_Memset( svs.clients, 0, sv_maxclients->integer * sizeof(client_t) );
+
+	// copy the clients over
+	for ( i = 0 ; i < count ; i++ ) {
+		if ( oldClients[i].state >= CS_CONNECTED ) {
+			svs.clients[i] = oldClients[i];
+		}
+	}
+
+	// free the old clients on the hunk
+	Hunk_FreeTempMemory( oldClients );
+
+	// allocate new snapshot entities
+	if ( com_dedicated->integer ) {
+		svs.numSnapshotEntities = sv_maxclients->integer * PACKET_BACKUP * 64;
+	} else {
+		// we don't need nearly as many when playing locally
+		svs.numSnapshotEntities = sv_maxclients->integer * 4 * 64;
+	}
+}
+
+/*
+==================
+SV_DemoChangeMaxClients
+change sv_maxclients and move real clients slots when a demo is playing
+==================
+*/
+void SV_DemoChangeMaxClients( void ) {
         int             oldMaxClients;
         int             i, j;
         client_t        *oldClients = NULL;
@@ -336,14 +394,13 @@ void SV_ChangeMaxClients( void ) {
         Cvar_Get( "sv_democlients", "0", 0 );
 
         // make sure we have enough room for all clients
-	// FIXME: is it really necessary?
 	if ( sv_democlients->integer + count > MAX_CLIENTS )
 		Cvar_SetValue( "sv_democlients", MAX_CLIENTS - count );
         if ( sv_maxclients->integer < sv_democlients->integer + count ) {
-                Cvar_SetValueLatched( "sv_maxclients", sv_democlients->integer + count );
+                Cvar_SetLatched( "sv_maxclients", va("%i", sv_democlients->integer + count) );
         }
 	sv_maxclients->modified = qfalse;
-	//sv_democlients->modified = qfalse;
+
         // if still the same
         if ( !firstTime && sv_maxclients->integer == oldMaxClients ) {
                 // move people who are below sv_democlients up
@@ -393,6 +450,13 @@ void SV_ChangeMaxClients( void ) {
                 // we don't need nearly as many when playing locally
                 svs.numSnapshotEntities = sv_maxclients->integer * 4 * 64;
         }
+
+	// set demostate to none if it was just waiting to set maxclients and move real clients slots
+	if (sv.demoState == DS_WAITINGSTOP) {
+		sv.demoState = DS_NONE;
+		Cvar_SetValue("sv_demoState", DS_NONE);
+	}
+
 }
 
 /*
@@ -475,7 +539,11 @@ void SV_SpawnServer( char *server, qboolean killBots ) {
 	} else {
 		// check for maxclients or democlients change
 		if ( sv_maxclients->modified ) {
-			SV_ChangeMaxClients();
+			// If we are playing/waiting to play/waiting to stop a demo, we use a specialized function that will move real clients slots (so that democlients will be put to their original slots they were affected at the time of the real game)
+			if (sv.demoState == DS_WAITINGPLAYBACK || sv.demoState == DS_PLAYBACK || sv.demoState == DS_WAITINGSTOP)
+				SV_DemoChangeMaxClients();
+			else
+				SV_ChangeMaxClients();
 		}
 	}
 

@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../game/g_local.h" // get both the definitions of gentity_t (to get gentity_t->health field) AND sharedEntity_t, so that we can convert a sharedEntity_t into a gentity_t (see more details in SV_GentityUpdateHealthField() notes)
 #include "../qcommon/qcommon.h" // needed so that the public declarations in server.h can access these functions (because server.h links to qcommon.h, so that it does server.h->qcommon.h->sv_demo_ext.c -- in the end, no includes redundancy conflicts and every server files can access these functions!)
 
-//#include "server.h" // if you include server.h directly, you won't be able to include g_local.h, and you're stuck!
+//#include "server.h" // DO NOT DO THAT! if you include server.h directly, you won't be able to include g_local.h, and you're stuck!
 
 /***********************************************
  * AUXILIARY FUNCTIONS: UPDATING OF GENTITY_T->HEALTH

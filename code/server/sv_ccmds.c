@@ -285,7 +285,7 @@ static void SV_MapRestart_f( void ) {
 	}
 
 	// check for changes in variables that can't just be restarted
-	// check for maxclients and democlients change
+	// check for maxclients
 	if ( sv_maxclients->modified || sv_gametype->modified || sv_dorestart->integer ) {
 		char	mapname[MAX_QPATH];
 
@@ -1353,11 +1353,6 @@ static void SV_Demo_Play_f( void ) {
                 return;
         }
 
-        //if (sv_democlients->integer <= 0) {
-                //Com_Printf("You need to set sv_democlients to a value greater than 0.\n");
-                //return;
-        //}
-
         // check for an extension .svdm_?? (?? is protocol)
         arg = Cmd_Argv(1);
         if (!strcmp(arg + strlen(arg) - 6, va(".svdm_%d", PROTOCOL_VERSION)))
@@ -1373,7 +1368,6 @@ static void SV_Demo_Play_f( void ) {
                 return;
         }
 
-	//sv.demoFile = fopen ("C:\\Users\\LRQ\\DOWNLO~1\\oa081\\OPENAR~1.1\\AppData\\OpenArena\\baseoa\\svdemos\\20120128234426-ps37ctf.svdm_71", "rb");
         SV_DemoStartPlayback();
 }
 

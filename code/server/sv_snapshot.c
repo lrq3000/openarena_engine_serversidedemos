@@ -675,7 +675,7 @@ void SV_SendClientMessages( void ) {
 
 	// send a message to each connected client
 	for (i=0, c = svs.clients ; i < sv_maxclients->integer ; i++, c++) {
-		if (!c->state || c->demoClient) {
+		if (!c->state || c->demoClient) { // do not send a packet to a democlient, this will cause the engine to crash
 			continue;		// not connected
 		}
 

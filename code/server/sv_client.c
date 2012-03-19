@@ -557,7 +557,7 @@ void SV_DropClient( client_t *drop, const char *reason ) {
 		return;		// already dropped
 	}
 
-	if ( !isBot && !drop->demoClient ) {
+	if ( !isBot && !drop->demoClient ) { // Don't drop bots nor democlients (will make the server crash since there's no network connection to manage with these clients!)
 		// see if we already have a challenge for this ip
 		challenge = &svs.challenges[0];
 

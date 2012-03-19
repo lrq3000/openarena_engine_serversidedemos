@@ -19,7 +19,7 @@ along with Quake III Arena source code; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
-//
+// 
 // string allocation/managment
 
 #include "ui_shared.h"
@@ -41,17 +41,6 @@ typedef struct scrollInfo_s {
 } scrollInfo_t;
 
 static scrollInfo_t scrollInfo;
-
-#define MAX_DELAYED_COMMANDS 64
-
-typedef struct delayed_cmd_s
-{
-  itemDef_t *item;
-  int time;
-}
-delayed_cmd_t;
-
-delayed_cmd_t delayed_cmd[ MAX_DELAYED_COMMANDS ];
 
 static void (*captureFunc) (void *p) = 0;
 static void *captureData = NULL;
@@ -99,9 +88,9 @@ static int		allocPoint, outOfMemory;
 ===============
 UI_Alloc
 ===============
-*/
+*/				  
 void *UI_Alloc( int size ) {
-	char	*p;
+	char	*p; 
 
 	if ( allocPoint + size > MEM_POOL_SIZE ) {
 		outOfMemory = qtrue;
@@ -505,7 +494,7 @@ qboolean PC_String_Parse(int handle, const char **out) {
 
 	if (!trap_PC_ReadToken(handle, &token))
 		return qfalse;
-
+	
 	*(out) = String_Alloc(token.string);
     return qtrue;
 }
@@ -520,9 +509,9 @@ qboolean PC_Script_Parse(int handle, const char **out) {
 	pc_token_t token;
 
 	memset(script, 0, sizeof(script));
-	// scripts start with { and have ; separated command lists.. commands are command, arg..
+	// scripts start with { and have ; separated command lists.. commands are command, arg.. 
 	// basically we want everything between the { } as it will be interpreted at run time
-
+  
 	if (!trap_PC_ReadToken(handle, &token))
 		return qfalse;
 	if (Q_stricmp(token.string, "{") != 0) {
@@ -549,7 +538,7 @@ qboolean PC_Script_Parse(int handle, const char **out) {
 }
 
 // display, window, menu, item code
-//
+// 
 
 /*
 ==================
@@ -564,7 +553,7 @@ void Init_Display(displayContextDef_t *dc) {
 
 
 
-// type and style painting
+// type and style painting 
 
 void GradientBar_Paint(rectDef_t *rect, vec4_t color) {
 	// gradient bar takes two paints
@@ -579,7 +568,7 @@ void GradientBar_Paint(rectDef_t *rect, vec4_t color) {
 Window_Init
 
 Initializes a window structure ( windowDef_t ) with defaults
-
+ 
 ==================
 */
 void Window_Init(Window *w) {
@@ -665,7 +654,7 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 			if (w->cinematic == -1) {
 				w->cinematic = -2;
 			}
-		}
+		} 
 		if (w->cinematic >= 0) {
 	    DC->runCinematicFrame(w->cinematic);
 			DC->drawCinematic(w->cinematic, fillRect.x, fillRect.y, fillRect.w, fillRect.h);
@@ -676,7 +665,7 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
     // full
     // HACK HACK HACK
     if (w->style == WINDOW_STYLE_TEAMCOLOR) {
-      if (color[0] > 0) {
+      if (color[0] > 0) { 
         // red
         color[0] = 1;
         color[1] = color[2] = .5;
@@ -713,7 +702,7 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 
 
 void Item_SetScreenCoords(itemDef_t *item, float x, float y) {
-
+  
   if (item == NULL) {
     return;
   }
@@ -737,7 +726,7 @@ void Item_SetScreenCoords(itemDef_t *item, float x, float y) {
 void Item_UpdatePosition(itemDef_t *item) {
   float x, y;
   menuDef_t *menu;
-
+  
   if (item == NULL || item->parent == NULL) {
     return;
   }
@@ -746,7 +735,7 @@ void Item_UpdatePosition(itemDef_t *item) {
 
   x = menu->window.rect.x;
   y = menu->window.rect.y;
-
+  
   if (menu->window.border != 0) {
     x += menu->window.borderSize;
     y += menu->window.borderSize;
@@ -764,7 +753,7 @@ void Menu_UpdatePosition(menuDef_t *menu) {
   if (menu == NULL) {
     return;
   }
-
+  
   x = menu->window.rect.x;
   y = menu->window.rect.y;
   if (menu->window.border != 0) {
@@ -801,13 +790,13 @@ itemDef_t *Menu_ClearFocus(menuDef_t *menu) {
   for (i = 0; i < menu->itemCount; i++) {
     if (menu->items[i]->window.flags & WINDOW_HASFOCUS) {
       ret = menu->items[i];
-    }
+    } 
     menu->items[i]->window.flags &= ~WINDOW_HASFOCUS;
     if (menu->items[i]->leaveFocus) {
       Item_RunScript(menu->items[i], menu->items[i]->leaveFocus);
     }
   }
-
+ 
   return ret;
 }
 
@@ -830,7 +819,7 @@ int Menu_ItemsMatchingGroup(menuDef_t *menu, const char *name) {
   for (i = 0; i < menu->itemCount; i++) {
     if (Q_stricmp(menu->items[i]->window.name, name) == 0 || (menu->items[i]->window.group && Q_stricmp(menu->items[i]->window.group, name) == 0)) {
       count++;
-    }
+    } 
   }
   return count;
 }
@@ -844,7 +833,7 @@ itemDef_t *Menu_GetMatchingItemByNumber(menuDef_t *menu, int index, const char *
         return menu->items[i];
       }
       count++;
-    }
+    } 
   }
   return NULL;
 }
@@ -884,7 +873,7 @@ void Script_SetAsset(itemDef_t *item, char **args) {
   const char *name;
   // expecting name to set asset to
   if (String_Parse(args, &name)) {
-    // check for a model
+    // check for a model 
     if (item->type == ITEM_TYPE_MODEL) {
     }
   }
@@ -1011,7 +1000,7 @@ menuDef_t *Menus_FindByName(const char *p) {
   for (i = 0; i < menuCount; i++) {
     if (Q_stricmp(Menus[i].window.name, p) == 0) {
       return &Menus[i];
-    }
+    } 
   }
   return NULL;
 }
@@ -1218,7 +1207,7 @@ void Script_SetCvar(itemDef_t *item, char **args) {
 	if (String_Parse(args, &cvar) && String_Parse(args, &val)) {
 		DC->setCVar(cvar, val);
 	}
-
+	
 }
 
 void Script_Exec(itemDef_t *item, char **args) {
@@ -1241,43 +1230,6 @@ void Script_playLooped(itemDef_t *item, char **args) {
 		DC->stopBackgroundTrack();
 		DC->startBackgroundTrack(val, val);
 	}
-}
-
-void Menu_DelayItemByName( menuDef_t *menu, const char *p, int time )
-{
-  itemDef_t *item;
-  int i, j = 0;
-  int count = Menu_ItemsMatchingGroup( menu, p );
-
-  for( i = 0; i < count; i++ )
-  {
-    item = Menu_GetMatchingItemByNumber( menu, i, p );
-
-    if( item != NULL && item->delayEvent && item->delayEvent[ 0 ] )
-    {
-      for( ; j < MAX_DELAYED_COMMANDS; j++ )
-      {
-        if( !delayed_cmd[ j ].time )
-        {
-          delayed_cmd[ j ].item = item;
-          delayed_cmd[ j ].time = DC->realTime + time;
-          j++;
-          break;
-        }
-      }
-    }
-  }
-}
-
-void Script_Delay( itemDef_t *item, char **args )
-{
-  const char *name;
-  int time;
-
-  if( Int_Parse( args, &time ) && String_Parse( args, &name ) )
-  {
-    Menu_DelayItemByName( item->parent, name, time );
-  }
 }
 
 
@@ -1303,8 +1255,7 @@ commandDef_t commandList[] =
   {"exec", &Script_Exec},           // group/name
   {"play", &Script_Play},           // group/name
   {"playlooped", &Script_playLooped},           // group/name
-  {"orbit", &Script_Orbit},                      // group/name
-  {"delay", &Script_Delay},                     // group/name
+  {"orbit", &Script_Orbit}                      // group/name
 };
 
 int scriptCommandCount = ARRAY_LEN(commandList);
@@ -1385,7 +1336,7 @@ qboolean Item_EnableShowViaCvar(itemDef_t *item, int flag) {
 }
 
 
-// will optionaly set focus to this item
+// will optionaly set focus to this item 
 qboolean Item_SetFocus(itemDef_t *item, float x, float y) {
 	int i;
 	itemDef_t *oldFocus;
@@ -1398,8 +1349,8 @@ qboolean Item_SetFocus(itemDef_t *item, float x, float y) {
 	}
 
 	// this can be NULL
-	parent = (menuDef_t*)item->parent;
-
+	parent = (menuDef_t*)item->parent; 
+      
 	// items can be enabled and disabled based on cvars
 	if (item->cvarFlags & (CVAR_ENABLE | CVAR_DISABLE) && !Item_EnableShowViaCvar(item, CVAR_ENABLE)) {
 		return qfalse;
@@ -1643,11 +1594,11 @@ int Item_ListBox_OverLB(itemDef_t *item, float x, float y) {
 }
 
 
-void Item_ListBox_MouseEnter(itemDef_t *item, float x, float y)
+void Item_ListBox_MouseEnter(itemDef_t *item, float x, float y) 
 {
 	rectDef_t r;
 	listBoxDef_t *listPtr = (listBoxDef_t*)item->typeData;
-
+        
 	item->window.flags &= ~(WINDOW_LB_LEFTARROW | WINDOW_LB_RIGHTARROW | WINDOW_LB_THUMB | WINDOW_LB_PGUP | WINDOW_LB_PGDN);
 	item->window.flags |= Item_ListBox_OverLB(item, x, y);
 
@@ -1666,7 +1617,7 @@ void Item_ListBox_MouseEnter(itemDef_t *item, float x, float y)
 					}
 				}
 			} else {
-				// text hit..
+				// text hit.. 
 			}
 		}
 	} else if (!(item->window.flags & (WINDOW_LB_LEFTARROW | WINDOW_LB_RIGHTARROW | WINDOW_LB_THUMB | WINDOW_LB_PGUP | WINDOW_LB_PGDN))) {
@@ -1776,7 +1727,7 @@ qboolean Item_ListBox_HandleKey(itemDef_t *item, int key, qboolean down, qboolea
 		max = Item_ListBox_MaxScroll(item);
 		if (item->window.flags & WINDOW_HORIZONTAL) {
 			viewmax = (item->window.rect.w / listPtr->elementWidth);
-			if ( key == K_LEFTARROW || key == K_KP_LEFTARROW )
+			if ( key == K_LEFTARROW || key == K_KP_LEFTARROW ) 
 			{
 				if (!listPtr->notselectable) {
 					listPtr->cursorPos--;
@@ -1799,7 +1750,7 @@ qboolean Item_ListBox_HandleKey(itemDef_t *item, int key, qboolean down, qboolea
 				}
 				return qtrue;
 			}
-			if ( key == K_RIGHTARROW || key == K_KP_RIGHTARROW )
+			if ( key == K_RIGHTARROW || key == K_KP_RIGHTARROW ) 
 			{
 				if (!listPtr->notselectable) {
 					listPtr->cursorPos++;
@@ -1825,7 +1776,7 @@ qboolean Item_ListBox_HandleKey(itemDef_t *item, int key, qboolean down, qboolea
 		}
 		else {
 			viewmax = (item->window.rect.h / listPtr->elementHeight);
-			if ( key == K_UPARROW || key == K_KP_UPARROW )
+			if ( key == K_UPARROW || key == K_KP_UPARROW ) 
 			{
 				if (!listPtr->notselectable) {
 					listPtr->cursorPos--;
@@ -1848,7 +1799,7 @@ qboolean Item_ListBox_HandleKey(itemDef_t *item, int key, qboolean down, qboolea
 				}
 				return qtrue;
 			}
-			if ( key == K_DOWNARROW || key == K_KP_DOWNARROW )
+			if ( key == K_DOWNARROW || key == K_KP_DOWNARROW ) 
 			{
 				if (!listPtr->notselectable) {
 					listPtr->cursorPos++;
@@ -2151,7 +2102,7 @@ qboolean Item_TextField_HandleKey(itemDef_t *item, int key) {
 				return qtrue;
 			}
 
-			if ( key == K_RIGHTARROW || key == K_KP_RIGHTARROW )
+			if ( key == K_RIGHTARROW || key == K_KP_RIGHTARROW ) 
 			{
 				if (editPtr->maxPaintChars && item->cursorPos >= editPtr->maxPaintChars && item->cursorPos < len) {
 					item->cursorPos++;
@@ -2160,11 +2111,11 @@ qboolean Item_TextField_HandleKey(itemDef_t *item, int key) {
 				}
 				if (item->cursorPos < len) {
 					item->cursorPos++;
-				}
+				} 
 				return qtrue;
 			}
 
-			if ( key == K_LEFTARROW || key == K_KP_LEFTARROW )
+			if ( key == K_LEFTARROW || key == K_KP_LEFTARROW ) 
 			{
 				if ( item->cursorPos > 0 ) {
 					item->cursorPos--;
@@ -2221,12 +2172,12 @@ qboolean Item_TextField_HandleKey(itemDef_t *item, int key) {
 
 static void Scroll_ListBox_AutoFunc(void *p) {
 	scrollInfo_t *si = (scrollInfo_t*)p;
-	if (DC->realTime > si->nextScrollTime) {
+	if (DC->realTime > si->nextScrollTime) { 
 		// need to scroll which is done by simulating a click to the item
 		// this is done a bit sideways as the autoscroll "knows" that the item is a listbox
 		// so it calls it directly
 		Item_ListBox_HandleKey(si->item, si->scrollKey, qtrue, qfalse);
-		si->nextScrollTime = DC->realTime + si->adjustValue;
+		si->nextScrollTime = DC->realTime + si->adjustValue; 
 	}
 
 	if (DC->realTime > si->nextAdjustTime) {
@@ -2282,12 +2233,12 @@ static void Scroll_ListBox_ThumbFunc(void *p) {
 		si->yStart = DC->cursory;
 	}
 
-	if (DC->realTime > si->nextScrollTime) {
+	if (DC->realTime > si->nextScrollTime) { 
 		// need to scroll which is done by simulating a click to the item
 		// this is done a bit sideways as the autoscroll "knows" that the item is a listbox
 		// so it calls it directly
 		Item_ListBox_HandleKey(si->item, si->scrollKey, qtrue, qfalse);
-		si->nextScrollTime = DC->realTime + si->adjustValue;
+		si->nextScrollTime = DC->realTime + si->adjustValue; 
 	}
 
 	if (DC->realTime > si->nextAdjustTime) {
@@ -2488,14 +2439,14 @@ void Item_Action(itemDef_t *item) {
 itemDef_t *Menu_SetPrevCursorItem(menuDef_t *menu) {
   qboolean wrapped = qfalse;
 	int oldCursor = menu->cursorItem;
-
+  
   if (menu->cursorItem < 0) {
     menu->cursorItem = menu->itemCount-1;
     wrapped = qtrue;
-  }
+  } 
 
   while (menu->cursorItem > -1) {
-
+    
     menu->cursorItem--;
     if (menu->cursorItem < 0 && !wrapped) {
       wrapped = qtrue;
@@ -2534,7 +2485,7 @@ itemDef_t *Menu_SetNextCursorItem(menuDef_t *menu) {
 			Menu_HandleMouseMove(menu, menu->items[menu->cursorItem]->window.rect.x + 1, menu->items[menu->cursorItem]->window.rect.y + 1);
       return menu->items[menu->cursorItem];
     }
-
+    
   }
 
 	menu->cursorItem = oldCursor;
@@ -2599,9 +2550,9 @@ int Display_VisibleMenuCount( void ) {
 void Menus_HandleOOBClick(menuDef_t *menu, int key, qboolean down) {
 	if (menu) {
 		int i;
-		// basically the behaviour we are looking for is if there are windows in the stack.. see if
-		// the cursor is within any of them.. if not close them otherwise activate them and pass the
-		// key on.. force a mouse move to activate focus and script stuff
+		// basically the behaviour we are looking for is if there are windows in the stack.. see if 
+		// the cursor is within any of them.. if not close them otherwise activate them and pass the 
+		// key on.. force a mouse move to activate focus and script stuff 
 		if (down && menu->window.flags & WINDOW_OOB_CLICK) {
 			Menu_RunCloseScript(menu);
 			menu->window.flags &= ~(WINDOW_HASFOCUS | WINDOW_VISIBLE);
@@ -2802,7 +2753,7 @@ void ToWindowCoords(float *x, float *y, windowDef_t *window) {
 	if (window->border != 0) {
 		*x += window->borderSize;
 		*y += window->borderSize;
-	}
+	} 
 	*x += window->rect.x;
 	*y += window->rect.y;
 }
@@ -2856,16 +2807,16 @@ void Item_TextColor(itemDef_t *item, vec4_t *newColor) {
 	Fade(&item->window.flags, &item->window.foreColor[3], parent->fadeClamp, &item->window.nextTime, parent->fadeCycle, qtrue, parent->fadeAmount);
 
 	if (item->window.flags & WINDOW_HASFOCUS) {
-		lowLight[0] = 0.8 * parent->focusColor[0];
-		lowLight[1] = 0.8 * parent->focusColor[1];
-		lowLight[2] = 0.8 * parent->focusColor[2];
-		lowLight[3] = 0.8 * parent->focusColor[3];
+		lowLight[0] = 0.8 * parent->focusColor[0]; 
+		lowLight[1] = 0.8 * parent->focusColor[1]; 
+		lowLight[2] = 0.8 * parent->focusColor[2]; 
+		lowLight[3] = 0.8 * parent->focusColor[3]; 
 		LerpColor(parent->focusColor,lowLight,*newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else if (item->textStyle == ITEM_TEXTSTYLE_BLINK && !((DC->realTime/BLINK_DIVISOR) & 1)) {
-		lowLight[0] = 0.8 * item->window.foreColor[0];
-		lowLight[1] = 0.8 * item->window.foreColor[1];
-		lowLight[2] = 0.8 * item->window.foreColor[2];
-		lowLight[3] = 0.8 * item->window.foreColor[3];
+		lowLight[0] = 0.8 * item->window.foreColor[0]; 
+		lowLight[1] = 0.8 * item->window.foreColor[1]; 
+		lowLight[2] = 0.8 * item->window.foreColor[2]; 
+		lowLight[3] = 0.8 * item->window.foreColor[3]; 
 		LerpColor(item->window.foreColor,lowLight,*newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else {
 		memcpy(newColor, &item->window.foreColor, sizeof(vec4_t));
@@ -3085,15 +3036,15 @@ void Item_TextField_Paint(itemDef_t *item) {
 
 	if (item->cvar) {
 		DC->getCVarString(item->cvar, buff, sizeof(buff));
-	}
+	} 
 
 	parent = (menuDef_t*)item->parent;
 
 	if (item->window.flags & WINDOW_HASFOCUS) {
-		lowLight[0] = 0.8 * parent->focusColor[0];
-		lowLight[1] = 0.8 * parent->focusColor[1];
-		lowLight[2] = 0.8 * parent->focusColor[2];
-		lowLight[3] = 0.8 * parent->focusColor[3];
+		lowLight[0] = 0.8 * parent->focusColor[0]; 
+		lowLight[1] = 0.8 * parent->focusColor[1]; 
+		lowLight[2] = 0.8 * parent->focusColor[2]; 
+		lowLight[3] = 0.8 * parent->focusColor[3]; 
 		LerpColor(parent->focusColor,lowLight,newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else {
 		memcpy(&newColor, &item->window.foreColor, sizeof(vec4_t));
@@ -3117,10 +3068,10 @@ void Item_YesNo_Paint(itemDef_t *item) {
 	value = (item->cvar) ? DC->getCVarValue(item->cvar) : 0;
 
 	if (item->window.flags & WINDOW_HASFOCUS) {
-		lowLight[0] = 0.8 * parent->focusColor[0];
-		lowLight[1] = 0.8 * parent->focusColor[1];
-		lowLight[2] = 0.8 * parent->focusColor[2];
-		lowLight[3] = 0.8 * parent->focusColor[3];
+		lowLight[0] = 0.8 * parent->focusColor[0]; 
+		lowLight[1] = 0.8 * parent->focusColor[1]; 
+		lowLight[2] = 0.8 * parent->focusColor[2]; 
+		lowLight[3] = 0.8 * parent->focusColor[3]; 
 		LerpColor(parent->focusColor,lowLight,newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else {
 		memcpy(&newColor, &item->window.foreColor, sizeof(vec4_t));
@@ -3140,10 +3091,10 @@ void Item_Multi_Paint(itemDef_t *item) {
 	menuDef_t *parent = (menuDef_t*)item->parent;
 
 	if (item->window.flags & WINDOW_HASFOCUS) {
-		lowLight[0] = 0.8 * parent->focusColor[0];
-		lowLight[1] = 0.8 * parent->focusColor[1];
-		lowLight[2] = 0.8 * parent->focusColor[2];
-		lowLight[3] = 0.8 * parent->focusColor[3];
+		lowLight[0] = 0.8 * parent->focusColor[0]; 
+		lowLight[1] = 0.8 * parent->focusColor[1]; 
+		lowLight[2] = 0.8 * parent->focusColor[2]; 
+		lowLight[3] = 0.8 * parent->focusColor[3]; 
 		LerpColor(parent->focusColor,lowLight,newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else {
 		memcpy(&newColor, &item->window.foreColor, sizeof(vec4_t));
@@ -3172,11 +3123,11 @@ typedef struct
 {
 	char*	name;
 	float	defaultvalue;
-	float	value;
+	float	value;	
 } configcvar_t;
 
 
-static bind_t g_bindings[] =
+static bind_t g_bindings[] = 
 {
 	{"+scores",			 K_TAB,				-1,		-1, -1},
 	{"+button2",		 K_ENTER,			-1,		-1, -1},
@@ -3332,7 +3283,7 @@ void Controls_SetConfig(qboolean restart)
 	{
 
 		if (g_bindings[i].bind1 != -1)
-		{
+		{	
 			DC->setBinding( g_bindings[i].bind1, g_bindings[i].command );
 
 			if (g_bindings[i].bind2 != -1)
@@ -3432,10 +3383,10 @@ void Item_Slider_Paint(itemDef_t *item) {
 	value = (item->cvar) ? DC->getCVarValue(item->cvar) : 0;
 
 	if (item->window.flags & WINDOW_HASFOCUS) {
-		lowLight[0] = 0.8 * parent->focusColor[0];
-		lowLight[1] = 0.8 * parent->focusColor[1];
-		lowLight[2] = 0.8 * parent->focusColor[2];
-		lowLight[3] = 0.8 * parent->focusColor[3];
+		lowLight[0] = 0.8 * parent->focusColor[0]; 
+		lowLight[1] = 0.8 * parent->focusColor[1]; 
+		lowLight[2] = 0.8 * parent->focusColor[2]; 
+		lowLight[3] = 0.8 * parent->focusColor[3]; 
 		LerpColor(parent->focusColor,lowLight,newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else {
 		memcpy(&newColor, &item->window.foreColor, sizeof(vec4_t));
@@ -3475,10 +3426,10 @@ void Item_Bind_Paint(itemDef_t *item) {
 			lowLight[2] = 0.8f * 0.0f;
 			lowLight[3] = 0.8f * 1.0f;
 		} else {
-			lowLight[0] = 0.8f * parent->focusColor[0];
-			lowLight[1] = 0.8f * parent->focusColor[1];
-			lowLight[2] = 0.8f * parent->focusColor[2];
-			lowLight[3] = 0.8f * parent->focusColor[3];
+			lowLight[0] = 0.8f * parent->focusColor[0]; 
+			lowLight[1] = 0.8f * parent->focusColor[1]; 
+			lowLight[2] = 0.8f * parent->focusColor[2]; 
+			lowLight[3] = 0.8f * parent->focusColor[3]; 
 		}
 		LerpColor(parent->focusColor,lowLight,newColor,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 	} else {
@@ -3525,7 +3476,7 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 			case K_ESCAPE:
 				g_waitingForKey = qfalse;
 				return qtrue;
-
+	
 			case K_BACKSPACE:
 				id = BindingIDFromName(item->cvar);
 				if (id != -1) {
@@ -3585,10 +3536,10 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 			DC->setBinding( g_bindings[id].bind2, "" );
 			g_bindings[id].bind1 = key;
 			g_bindings[id].bind2 = -1;
-		}
+		}						
 	}
 
-	Controls_SetConfig(qtrue);
+	Controls_SetConfig(qtrue);	
 	g_waitingForKey = qfalse;
 
 	return qtrue;
@@ -3639,7 +3590,7 @@ void Item_Model_Paint(itemDef_t *item) {
 
 	// calculate distance so the model nearly fills the box
 	if (qtrue) {
-		float len = 0.5 * ( maxs[2] - mins[2] );
+		float len = 0.5 * ( maxs[2] - mins[2] );		
 		origin[0] = len / 0.268;	// len / tan( fov/2 )
 		//origin[0] = len / tan(w/2);
 	} else {
@@ -3873,23 +3824,23 @@ void Item_OwnerDraw_Paint(itemDef_t *item) {
 		}
 
 		if (item->window.flags & WINDOW_HASFOCUS) {
-			lowLight[0] = 0.8 * parent->focusColor[0];
-			lowLight[1] = 0.8 * parent->focusColor[1];
-			lowLight[2] = 0.8 * parent->focusColor[2];
-			lowLight[3] = 0.8 * parent->focusColor[3];
+			lowLight[0] = 0.8 * parent->focusColor[0]; 
+			lowLight[1] = 0.8 * parent->focusColor[1]; 
+			lowLight[2] = 0.8 * parent->focusColor[2]; 
+			lowLight[3] = 0.8 * parent->focusColor[3]; 
 			LerpColor(parent->focusColor,lowLight,color,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 		} else if (item->textStyle == ITEM_TEXTSTYLE_BLINK && !((DC->realTime/BLINK_DIVISOR) & 1)) {
-			lowLight[0] = 0.8 * item->window.foreColor[0];
-			lowLight[1] = 0.8 * item->window.foreColor[1];
-			lowLight[2] = 0.8 * item->window.foreColor[2];
-			lowLight[3] = 0.8 * item->window.foreColor[3];
+			lowLight[0] = 0.8 * item->window.foreColor[0]; 
+			lowLight[1] = 0.8 * item->window.foreColor[1]; 
+			lowLight[2] = 0.8 * item->window.foreColor[2]; 
+			lowLight[3] = 0.8 * item->window.foreColor[3]; 
 			LerpColor(item->window.foreColor,lowLight,color,0.5+0.5*sin(DC->realTime / PULSE_DIVISOR));
 		}
 
 		if (item->cvarFlags & (CVAR_ENABLE | CVAR_DISABLE) && !Item_EnableShowViaCvar(item, CVAR_ENABLE)) {
 		  Com_Memcpy(color, parent->disableColor, sizeof(vec4_t));
 		}
-
+	
 		if (item->text) {
 			Item_Text_Paint(item);
 				if (item->text[0]) {
@@ -3915,20 +3866,10 @@ void Item_Paint(itemDef_t *item) {
     return;
   }
 
-  // check for delays
-  for( i = 0; i < MAX_DELAYED_COMMANDS; i++ )
-  {
-    if( delayed_cmd[ i ].item == item && delayed_cmd[ i ].time && delayed_cmd[ i ].time < DC->realTime )
-    {
-      Item_RunScript( item, item->delayEvent );
-      delayed_cmd[ i ].time = 0;
-    }
-  }
-
   if (item->window.flags & WINDOW_ORBITING) {
     if (DC->realTime > item->window.nextTime) {
       float rx, ry, a, c, s, w, h;
-
+      
       item->window.nextTime = DC->realTime + item->window.offsetTime;
       // translate
       w = item->window.rectClient.w / 2;
@@ -4051,7 +3992,7 @@ void Item_Paint(itemDef_t *item) {
     return;
   }
 
-  // paint the rect first..
+  // paint the rect first.. 
   Window_Paint(&item->window, parent->fadeAmount , parent->fadeClamp, parent->fadeCycle);
 
   if (debugMode) {
@@ -4238,7 +4179,7 @@ void Menu_HandleMouseMove(menuDef_t *menu, float x, float y) {
 		return;
 	}
 
-  // FIXME: this is the whole issue of focus vs. mouse over..
+  // FIXME: this is the whole issue of focus vs. mouse over.. 
   // need a better overall solution as i don't like going through everything twice
   for (pass = 0; pass < 2; pass++) {
     for (i = 0; i < menu->itemCount; i++) {
@@ -4303,7 +4244,7 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint) {
 	if (menu->window.ownerDrawFlags && DC->ownerDrawVisible && !DC->ownerDrawVisible(menu->window.ownerDrawFlags)) {
 		return;
 	}
-
+	
 	if (forcePaint) {
 		menu->window.flags |= WINDOW_FORCED;
 	}
@@ -4657,7 +4598,7 @@ qboolean ItemParse_elementtype( itemDef_t *item, int handle ) {
 	return qtrue;
 }
 
-// columns sets a number of columns and an x pos and width per..
+// columns sets a number of columns and an x pos and width per.. 
 qboolean ItemParse_columns( itemDef_t *item, int handle ) {
 	int num, i;
 	listBoxDef_t *listPtr;
@@ -4886,14 +4827,6 @@ qboolean ItemParse_mouseExitText( itemDef_t *item, int handle ) {
 	return qtrue;
 }
 
-qboolean ItemParse_delayEvent( itemDef_t *item, int handle )
-{
-  if( !PC_Script_Parse( handle, &item->delayEvent ) )
-    return qfalse;
-
-  return qtrue;
-}
-
 qboolean ItemParse_action( itemDef_t *item, int handle ) {
 	if (!PC_Script_Parse(handle, &item->action)) {
 		return qfalse;
@@ -4985,7 +4918,7 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 	pc_token_t token;
 	multiDef_t *multiPtr;
 	int pass;
-
+	
 	Item_ValidateTypeData(item);
 	if (!item->typeData)
 		return qfalse;
@@ -5033,7 +4966,7 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 qboolean ItemParse_cvarFloatList( itemDef_t *item, int handle ) {
 	pc_token_t token;
 	multiDef_t *multiPtr;
-
+	
 	Item_ValidateTypeData(item);
 	if (!item->typeData)
 		return qfalse;
@@ -5179,7 +5112,6 @@ keywordHash_t itemParseKeywords[] = {
 	{"mouseExit", ItemParse_mouseExit, NULL},
 	{"mouseEnterText", ItemParse_mouseEnterText, NULL},
 	{"mouseExitText", ItemParse_mouseExitText, NULL},
-	{"delayEvent", ItemParse_delayEvent, NULL},
 	{"action", ItemParse_action, NULL},
 	{"special", ItemParse_special, NULL},
 	{"cvar", ItemParse_cvar, NULL},
@@ -5639,7 +5571,7 @@ qboolean Menu_Parse(int handle, menuDef_t *menu) {
 	if (*token.string != '{') {
 		return qfalse;
 	}
-
+    
 	while ( 1 ) {
 
 		memset(&token, 0, sizeof(pc_token_t));
@@ -5709,7 +5641,7 @@ void Menu_Reset(void) {
 displayContextDef_t *Display_GetContext(void) {
 	return DC;
 }
-
+ 
 #ifndef MISSIONPACK
 static float captureX;
 static float captureY;
@@ -5729,7 +5661,7 @@ void *Display_CaptureItem(int x, int y) {
 }
 
 
-// FIXME:
+// FIXME: 
 qboolean Display_MouseMove(void *p, int x, int y) {
 	int i;
 	menuDef_t *menu = p;
@@ -5771,7 +5703,7 @@ int Display_CursorType(int x, int y) {
 
 void Display_HandleKey(int key, qboolean down, int x, int y) {
 	menuDef_t *menu = Display_CaptureItem(x, y);
-	if (menu == NULL) {
+	if (menu == NULL) {  
 		menu = Menu_GetFocused();
 	}
 	if (menu) {
@@ -5853,3 +5785,4 @@ static qboolean Menu_OverActiveItem(menuDef_t *menu, float x, float y) {
 	}
 	return qfalse;
 }
+
