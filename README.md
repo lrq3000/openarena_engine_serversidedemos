@@ -34,12 +34,14 @@ USAGE
 -----
 
 Commands:
+
 * demo_play <filename> : playback a server-side demo (to be found, the demo must be in the current mod folder, even if it was recorded with another mod)
 * demo_record <filename> : record a server-side demo with the given filename (will be saved in mod/svdemos folder)
 * demo_stop : stop any playback/recording (will automatically restore any previous setting on the server/client)
 * status : as with normal clients, when a demo is replaying, democlients will also be shown in the status (with ping DEMO)
 
 Special cvars:
+
 * sv_autoDemo 1 : enable automatic recording of server-side demos (will start at the next map change/map_restart)
 * sv_demoTolerant 1 : enable demo playback compatibility mode. If you have an old server-side demo, or a bit broken, this can maybe allow you to playback this demo nevertheless.
 * sv_democlients : show number of democlients (automatically managed, this is a read-only cvar)
