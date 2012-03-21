@@ -75,7 +75,13 @@ SHOULD DO (but not now)
 
 * Delagsimulation when replaying a demo to see in the "eye of the beholder". Probably should be done as a gamecode modification, either at recording by storing the client-side world state after delag, or by simulating the delag at replaying from demo and pings infos (already recorded normally).
 
-* Fix inactivity timers (simulate UserMove or just send a fake usercmd_t)
+* Fix usercmds_t replaying (by fixing command time, I think it's not set correctly and so the commands are dropped), see g_active.c ClientThink_real():
+	msec = ucmd->serverTime - client->ps.commandTime;
+	// following others may result in bad times, but we still want
+	// to check for follow toggles
+	if ( msec < 1 && client->sess.spectatorState != SPECTATOR_FOLLOW ) {
+		return;
+	}
 
 KNOWN BUGS (WONT FIX FOR NOW)
 -----------------------------
@@ -221,3 +227,5 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * cleaned FIXME
 
 * clean code
+
+* Fix inactivity timers (simulate UserMove or just send a fake usercmd_t) - had to craft a remoteAddress with NET_StringToAdr, because else if we just use Info_SetValueForKey(userinfo, "ip", "localhost") the server would remove the ip key in the userinfo because no real address can be found for democlients.

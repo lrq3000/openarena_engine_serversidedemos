@@ -817,7 +817,13 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 			}
 		}
 
-		VM_Call( gvm, GAME_CLIENT_BEGIN, num ); // Make sure the gamecode consider the democlients (this will allow to show them on the scoreboard and make them spectatable with a standard follow) - does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
+		// Set the remoteAddress of this client to localhost (this will set "ip\localhost" in the userinfo, which will in turn force the gamecode to set this client as a localClient, which avoids inactivity timers and some other stuffs to be triggered)
+		if (strlen(configstring)) // we check that the client isn't being dropped
+			NET_StringToAdr( "localhost", &client->netchan.remoteAddress, NA_LOOPBACK );
+
+		// Make sure the gamecode consider the democlients (this will allow to show them on the scoreboard and make them spectatable with a standard follow) - does not use argv (directly fetch client infos from userinfo) so no need to tokenize with Cmd_TokenizeString()
+		// Note: this also triggers the gamecode refreshing of the client's userinfo
+		VM_Call( gvm, GAME_CLIENT_BEGIN, num );
 	} else if ( Q_stricmp(sv.configstrings[CS_PLAYERS + num], configstring) && strlen(sv.configstrings[CS_PLAYERS + num]) && (!configstring || !strlen(configstring)) ) { // client disconnect: different configstrings and the new one is empty, so the client is not there anymore, we drop him (also we check that the old config was not empty, else we would be disconnecting a player who is already dropped)
 		Com_DPrintf("DebugGBOclientConfigString: disconnection %i\n", num);
 		client = &svs.clients[num];
@@ -861,6 +867,10 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	Q_strncpyz(svdnewteam, Info_ValueForKey(userinfo, "team"), MAX_NAME_LENGTH);
 
 	//Com_DPrintf("DebugGBOclientUserinfo1: oldteam: %s newteam: %s - strlen(userinfo): %i strlen(newteam): %i\n", svdoldteam, svdnewteam, strlen(userinfo), strlen(svdnewteam));
+
+	// Set the remoteAddress of this client to localhost (this will set "ip\localhost" in the userinfo, which will in turn force the gamecode to set this client as a localClient, which avoids inactivity timers and some other stuffs to be triggered)
+	if (strlen(userinfo)) // we check that the client isn't being dropped (in which case we shouldn't set an address)
+		NET_StringToAdr( "localhost", &client->netchan.remoteAddress, NA_LOOPBACK );
 
 	// Update the userinfo for both the server and gamecode
 	Cmd_TokenizeString( va("userinfo %s", userinfo) ); // we need to prepend the userinfo command (or in fact any word) to tokenize the userinfo string to the second index because SV_UpdateUserinfo_f expects to fetch it with Argv(1)
@@ -910,6 +920,7 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 SV_DemoReadClientUsercmd
 
 Read the usercmd_t for a democlient and restituate the movements - this is NOT needed to make democlients move, this is handled by entities management, but it should avoid inactivity timer to activate and can be used for demo analysis
+FIXME: should set ucmd->serverTime = client->ps.commandTime + 2 to avoid the dropping of the usercmds_t packets, see g_active.c
 ====================
 */
 /*
