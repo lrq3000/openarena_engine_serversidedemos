@@ -58,8 +58,6 @@ put this as a separate patch for ioquake3
 TODO
 ----
 
-* SV_DemoChangeMaxClients() does not consider privateclients reserved slots when moving clients (eg: with 2 privateslots: 2 -> 12 -> 0)
-
 * remove developer prints
 
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
@@ -68,8 +66,6 @@ SHOULD DO (but not now)
 -----------------------
 
 * please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case)
-
-* many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
 
 * when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
@@ -229,3 +225,7 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * clean code
 
 * Fix inactivity timers (simulate UserMove or just send a fake usercmd_t) - had to craft a remoteAddress with NET_StringToAdr, because else if we just use Info_SetValueForKey(userinfo, "ip", "localhost") the server would remove the ip key in the userinfo because no real address can be found for democlients.
+
+* SV_DemoChangeMaxClients() does not consider privateclients reserved slots when moving clients (eg: with 2 privateslots: 2 -> 12 -> 0)
+
+* many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.

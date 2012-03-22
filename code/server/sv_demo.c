@@ -1365,8 +1365,14 @@ Just issue again the demo_play command along with the demo filename (used when t
 */
 void SV_DemoRestartPlayback(void)
 {
-	if ( strlen(savedPlaybackDemoname) )
+	if ( strlen(savedPlaybackDemoname) ) {
+		// Set the demoState from DS_WAITINGPLAYBACK to DS_NONE (this avoids the engine to repeatedly restart the playback until it gets done, here we just launch it once) - this fix messages bug and accelerate the loading of the demo when switching mods
+		sv.demoState = DS_NONE;
+		Cvar_SetValue("sv_demoState", DS_NONE);
+		// Restart the playback (reissue the demo_play command and the demo filename)
 		Cbuf_AddText( va("%s\n", savedPlaybackDemoname ) );
+	}
+
 	return;
 }
 
