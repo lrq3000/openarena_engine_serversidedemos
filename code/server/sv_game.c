@@ -322,7 +322,6 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		Cvar_Update( VMA(1) );
 		return 0;
 	case G_CVAR_SET:
-		Com_DPrintf("DGBO G_CVAR_SET: %s = %s\n", (const char *)VMA(1), (const char *)VMA(2));
 		Cvar_Set( (const char *)VMA(1), (const char *)VMA(2) );
 		return 0;
 	case G_CVAR_VARIABLE_INTEGER_VALUE:
@@ -336,7 +335,6 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		Cmd_ArgvBuffer( args[1], VMA(2), args[3] );
 		return 0;
 	case G_SEND_CONSOLE_COMMAND:
-		Com_DPrintf("DGBO G_SEND_CONSOLE_COMMAND: when:%i cmd:%s\n", args[1], (const char *)VMA(2));
 		Cbuf_ExecuteText( args[1], VMA(2) );
 		return 0;
 
@@ -394,8 +392,6 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		return SV_inPVSIgnorePortals( VMA(1), VMA(2) );
 
 	case G_SET_CONFIGSTRING:
-		Com_DPrintf("DGBO G_SET_CONFIGSTRING: %i %s\n", args[1], (const char *)VMA(2));
-		Com_DPrintf("DGBO G_SET_CONFIGSTRING: cs_players: %i democlients: %i maxclients: %i\n", CS_PLAYERS, sv_democlients->integer, sv_maxclients->integer);
 		// Don't allow the game to overwrite demo configstrings (unless it modifies the normal spectator clients configstrings, this exception allows for player connecting during a demo playback to be correctly rendered, else they will get an empty configstring so no icon, no name, nothing...)
 		if ( (sv_democlients->integer > 0 && args[1] >= CS_PLAYERS + sv_democlients->integer && args[1] < CS_PLAYERS + sv_maxclients->integer) || sv.demoState != DS_PLAYBACK ) { // ATTENTION: sv.demoState check must be placed LAST! Else, it will short-circuit and prevent normal players configstrings from being set!
 			SV_SetConfigstring( args[1], VMA(2) );
@@ -405,7 +401,6 @@ intptr_t SV_GameSystemCalls( intptr_t *args ) {
 		SV_GetConfigstring( args[1], VMA(2), args[3] );
 		return 0;
 	case G_SET_USERINFO:
-		Com_DPrintf("DGBO G_SET_USERINFO: %i %s\n", args[1], (const char *)VMA(2));
 		SV_SetUserinfo( args[1], VMA(2) );
 		return 0;
 	case G_GET_USERINFO:

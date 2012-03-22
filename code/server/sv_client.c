@@ -1429,8 +1429,6 @@ void SV_UpdateUserinfo_f( client_t *cl ) {
 	SV_UserinfoChanged( cl );
 	// call prog code to allow overrides
 	VM_Call( gvm, GAME_CLIENT_USERINFO_CHANGED, cl - svs.clients );
-
-	Com_DPrintf("DGBO SV_UpdateUserinfo_f: %i %s\n", cl - svs.clients, Cmd_ArgsFrom(0));
 }
 
 
