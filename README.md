@@ -1,5 +1,5 @@
-Server-side demos patch for OpenArena v0.8.8 engine (entities/events oriented)
-=======================================================================
+Server-side demos patch (entities/events oriented) for OpenArena v0.8.8 engine + ioquake3 r2224
+===============================================================================================
 
 DESCRIPTION
 -----------
@@ -8,6 +8,8 @@ This patch provide a full server-side demos facility for OpenArena v0.8.8 and ba
 The approach used here is entity/event oriented demo recording, which means that each event and entity change is recorded in the demo separately. At playback, the whole game state is replayed every frame.
 
 This implementation has been made as generic as possible, and so it should work for any mod based on ioquake3 or Quake 3 Arena. It was also cleaned up and separated as much as possible from the core code, leaving a minimum of changes to the core files, so it should be easily portable to any version of ioquake3 >= r1910 (maybe also with a few prior versions).
+
+NOTE: this is a port from OpenArena v0.8.8 to OA+ioquake3, this should be even more close to the original ioquake3 code.
 
 FEATURES
 --------
@@ -54,39 +56,10 @@ DEV NOTES
 put this as a separate patch for ioquake3
 
 * usercmd_t management (players movement commands simulation) is implemented but commented out. It fully works, but it's not necessary for the demo functionnalities, and it adds a LOT of data to the demo file, so demo files take a lot more harddrive space when this function is enabled. If you want to do demo analysis, it is advised to turn on this feature, else you should probably not.
->>>>>>> Initial commit
 
 TODO
 ----
 
-<<<<<<< HEAD
-* Try to avoid changing qcommon area to support GLSL.  Canete's opengl2
-  didn't need this change so this renderer shouldn't either.
-* Remove compiler warnings.  I kept them in for now so the code would be
-  as close as possible to 0.8.8.
-* Verify that allowing say/say_team to bypass Cmd_Args_Sanitize is safe.
-* Build in FreeBSD
-* Build in MacOSX
-* Cross compile in Linux for Windows
-  - Cross compiling for Windows may require more changes to the Makefile to
-    enable ogg vorbis support
-* vm_powerpc_asm.c includes q_shared.h but upstream doesn't.  Why is this
-  change in 0.8.8?
-* Needs more testing
-* Verify changes with OpenArena developers
-* Potential GLSL debugging fix that was made available after 0.8.8 release.
-
-Original file
--------------
-
-OpenArena 0.8.8 client/server release source code:
-
-http://files.poulsander.com/~poul19/public_files/oa/dev088/openarena-engine-source-0.8.8.tar.bz2
-
-    $ sha1sum openarena-engine-source-0.8.8.tar.bz2
-    64f333c290b15b6b0e3819dc120b3eca2653340e  openarena-engine-source-0.8.8.tar.bz2
-
-=======
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
 
 SHOULD DO (but not now)
@@ -258,4 +231,3 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
 
 * remove developer prints
->>>>>>> Initial commit
