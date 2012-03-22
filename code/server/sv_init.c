@@ -557,7 +557,7 @@ void SV_SpawnServer( char *server, qboolean killBots ) {
 	if ( !Cvar_VariableValue("sv_running") ) {
 		SV_Startup();
 	} else {
-		// check for maxclients or democlients change
+		// check for maxclients change
 		if ( sv_maxclients->modified ) {
 			// If we are playing/waiting to play/waiting to stop a demo, we use a specialized function that will move real clients slots (so that democlients will be put to their original slots they were affected at the time of the real game)
 			if (sv.demoState == DS_WAITINGPLAYBACK || sv.demoState == DS_PLAYBACK || sv.demoState == DS_WAITINGSTOP)

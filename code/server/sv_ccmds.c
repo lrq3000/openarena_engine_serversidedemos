@@ -285,7 +285,7 @@ static void SV_MapRestart_f( void ) {
 	}
 
 	// check for changes in variables that can't just be restarted
-	// check for maxclients
+	// check for maxclients change
 	if ( sv_maxclients->modified || sv_gametype->modified || sv_dorestart->integer ) {
 		char	mapname[MAX_QPATH];
 
