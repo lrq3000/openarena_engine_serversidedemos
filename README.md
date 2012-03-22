@@ -1,75 +1,65 @@
-Unofficial port of OpenArena 0.8.8 client/server to the latest ioquake3
+Server-side demos patch for OpenArena v0.8.8 engine (entities/events oriented)
 =======================================================================
 
-This is based off of r28 of the binary thread which was used in the release
-client/server for OpenArena 0.8.8.
-
-It is intended to be as close as possible to 0.8.8 except when it makes
-sense to deviate.
-
-OpenArena 0.8.8 uses r1910 ioquake3 code.  This code currently targets
-r2224 which is the latest.
-
-Switching renderers
--------------------
-
-Recent ioquake3 versions allow for a modular renderer.  This allows you to
-select the renderer at runtime rather than compiling in one into the binary.
-
-To enable this feature, make sure Makefile.local has USE_RENDERER_DLOPEN=1.
-
-When you start OpenArena, you can pass the name of the dynamic library to
-load.  ioquake3 assumes a naming convention renderer_*_.
-
-Example:
-
-    # Enable the default ioquake3 renderer.
-    $ ./openarena.i386 +set cl_renderer opengl1
-
-    # Enable the OpenArena renderer with GLSL, bloom support and more.
-    $ ./openarena.i386 +set cl_renderer openarena1
-
-Development
+DESCRIPTION
 -----------
+This patch provide a full server-side demos facility for OpenArena v0.8.8 and based on Amanieu's original patch for Tremfusion (Tremulous).
 
-    # Get this project
-    $ git clone git://github.com/undeadzy/openarena_engine.git
-    $ cd openarena_engine
+The approach used here is entity/event oriented demo recording, which means that each event and entity change is recorded in the demo separately. At playback, the whole game state is replayed every frame.
 
-    # Create a reference to the upstream project
-    $ git remote add upstream git://github.com/undeadzy/ioquake3_mirror.git
+This implementation has been made as generic as possible, and so it should work for any mod based on ioquake3 or Quake 3 Arena. It was also cleaned up and separated as much as possible from the core code, leaving a minimum of changes to the core files, so it should be easily portable to any version of ioquake3 >= r1910 (maybe also with a few prior versions).
 
-    # View changes in this project compared to ioquake3's SVN
-    $ git fetch upstream
-    $ git diff upstream/master
+FEATURES
+--------
 
-Changes from 0.8.8 release
---------------------------
+* Allows to record full server-side demos
+* Can autorecord, with meaningful automatically generated filename (format: hostname-date-time-map.sv_dmxx)
+* Can record demos in mods
+* Privacy checking: filters out privacy data (not even recorded in the demo file)
+* Save meta-data of the demo (infos about the demo, like the UTC datetime)
+* Automatically switch the correct gametype/mod/map/limits when replaying a demo
+* Can play demos on a server
+* Can be used as an alternative to GTV by rebroadcasting a demo
 
-* OA's renderer is now in renderer_oa and the base ioquake3 renderer is left
-  untouched
-* This does not remove the game or cgame files.  They are never referenced or
-  built.  This makes it easier to keep in sync with upstream.  It would also
-  be possible to integrate the OA engine and OA game code at some point in the
-  future.
-* Makefile has fewer changes since the recent upstream Makefile makes it easier
-  to support standalone games
-* cl_yawspeed and cl_pitchspeed are CVAR_ROM instead of removing the variables
-  and using a constant.
-* r_aviMotionJpegQuality was left untouched
-* Enables STANDALONE so the CD key and authorize server related changes are
-  no longer needed.
-* Enables LEGACY_PROTOCOL and sets the version to 71.
-* This uses a different GAMENAME_FOR_MASTER than 0.8.8.  It also uses the new
-  HEARTBEAT_FOR_MASTER name since the code says to leave it unless you have a
-  good reason.
-* Any trivial whitespace changes were left out
-* Added James Canete's opengl2 renderer as a branch
-* GrosBedo added win32 support back to the Makefile
+INSTALL
+-------
+
+Simply compile the code into a binary, and use these binaries. You do not need to add any .pk3 nor make your server unpure, this will be totally transparent.
+
+Servers obviously need these binaries to record and play demos.
+
+Clients also need these binaries to play demos.
+
+USAGE
+-----
+
+Commands:
+
+* demo_play <filename> : playback a server-side demo (to be found, the demo must be in the current mod folder, even if it was recorded with another mod)
+* demo_record <filename> : record a server-side demo with the given filename (will be saved in mod/svdemos folder)
+* demo_stop : stop any playback/recording (will automatically restore any previous setting on the server/client)
+* status : as with normal clients, when a demo is replaying, democlients will also be shown in the status (with ping DEMO)
+
+Special cvars:
+
+* sv_autoDemo 1 : enable automatic recording of server-side demos (will start at the next map change/map_restart)
+* sv_demoTolerant 1 : enable demo playback compatibility mode. If you have an old server-side demo, or a bit broken, this can maybe allow you to playback this demo nevertheless.
+* sv_democlients : show number of democlients (automatically managed, this is a read-only cvar)
+* sv_demoState : show the current demo state (0: none, 1: waiting to play a demo, 2: demo playback, 3: waiting to stop a demo, 4: demo recording)
+
+DEV NOTES
+---------
+
+* In msg.c: if ( cl_shownet && ...  IS necessary for the patch to work, else without this consistency check the engine will crash when trying to replay a demo on a server (but it will still work on a client!)
+put this as a separate patch for ioquake3
+
+* usercmd_t management (players movement commands simulation) is implemented but commented out. It fully works, but it's not necessary for the demo functionnalities, and it adds a LOT of data to the demo file, so demo files take a lot more harddrive space when this function is enabled. If you want to do demo analysis, it is advised to turn on this feature, else you should probably not.
+>>>>>>> Initial commit
 
 TODO
 ----
 
+<<<<<<< HEAD
 * Try to avoid changing qcommon area to support GLSL.  Canete's opengl2
   didn't need this change so this renderer shouldn't either.
 * Remove compiler warnings.  I kept them in for now so the code would be
@@ -96,3 +86,176 @@ http://files.poulsander.com/~poul19/public_files/oa/dev088/openarena-engine-sour
     $ sha1sum openarena-engine-source-0.8.8.tar.bz2
     64f333c290b15b6b0e3819dc120b3eca2653340e  openarena-engine-source-0.8.8.tar.bz2
 
+=======
+* port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
+
+SHOULD DO (but not now)
+-----------------------
+
+* please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case)
+
+* when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
+
+* Delagsimulation when replaying a demo to see in the "eye of the beholder". Probably should be done as a gamecode modification, either at recording by storing the client-side world state after delag, or by simulating the delag at replaying from demo and pings infos (already recorded normally).
+
+* Fix usercmds_t replaying (by fixing command time, I think it's not set correctly and so the commands are dropped), see g_active.c ClientThink_real():
+	msec = ucmd->serverTime - client->ps.commandTime;
+	// following others may result in bad times, but we still want
+	// to check for follow toggles
+	if ( msec < 1 && client->sess.spectatorState != SPECTATOR_FOLLOW ) {
+		return;
+	}
+
+KNOWN BUGS (WONT FIX FOR NOW)
+-----------------------------
+Below is a list of known bugs or wished features, but if you encounter them, please report anyway. If a bug is reported to be too hampering, it may get fixed in the future.
+
+* save the minimum correct value for sv_democlients when recording: count the total number of clients (>= CS_ZOMBIE) per frame, and the highest number count will be the good number (or just look at the highest clientid reached since client slots are filled in ascending order).
+
+* entityShared_t, entityState_t and playerState_t could be normalized with the other functions to put in write functions and use a marker per entity instead of a marker for a whole lot of entities (but maybe this would require more space? but would maybe be better to read the demo, more coherent: one marker, one event).
+
+* team0 bug at demo start/end: when the server change sv_democlients and sv_maxclients, some data aren't copied over, or the gamecode is not notified of the change. Anyway, all my tries to fix that broke completely the engine (see SV_ChangeMaxClients() in sv_init.c if you want to give it a try). WORKAROUND: now the patch automatically force real clients to spectator, so this should not be an issue anymore (and in fact it happens when the gamecode thinks it's not a team-based gametype, so it makes the clients auto join in, but it's weird that sometimes it does the same thing when its >= GT_TEAM !).
+
+* NOT POSSIBLE (or already done): save all client_t (and clientState_t), player_t (and playerState_t), and gentity_t (sv.gentities) fields (and subfields) in demos. Advantage: theoretically 100% faitful demo. Cons: a big space hog and some fields should NOT be saved or they will cause a weird behaviour of the engine (such as netchan or download management fields).
+the best would be a polymorphic recursive function that would automatically read the specification of the object given or subobjects and automatically create the good fields, and when reading back the recording it would automatically know how to read the data based on the specification too).
+currently: only gentity_t->entityShared_t and gentity_t->entityState_t and playerState_t are recorded. Other fields (except health and speed) are NOT recorded (eg: gclient_s *client, gitem_t *item, etc..).
+
+* SendConsoleCommand save in demos (will record postgame data and teamtask) G_SEND_CONSOLE_COMMAND and reproduce with Cbuf_ExecuteText( args[1], VMA(2) ); - not a good idea because there are map_restart commands that may be catched, and we don't want that (and without this hook, the patch really works pretty well).
+
+* Prevent all recorded sv_game.c commands to be accepted when demo_playback? Bad idea I think.
+
+* Store and replay network messages, similarly to TheDoctor's patch, but redirect them to all the real players who are spectating the client? Could be nice, but hard to combine with the current infrastructure. And in fact, replaying demomessages can't replay all events when free flying. NO: in fact this method should be implemented in a separate patch and could lead to a full GTV-like alternative (and also to low CPU server-side demos).
+
+* scoreboard is not ordered in descending order of score (except when a player dies, it forces the engine to refresh with the demo's infos) - problem linked to the same cause that produces the ping problem.
+
+* Sometimes (not that it's not always, if it's always that's another bug) print or cp messages are issued more than once. This is a bug caused by the fact that the engine automatically issue messages after some events (such as ClientBegin), but they are also recorded in the demo file. When replaying, there's a check function that tries to avoid duplicates, but sometimes a few cases will slip in: to be more precise, when a game command from the demo file is issued before the event happening in the demo triggers the engine to issue a game command. The other way around (engine game command then demo game command) is already handled, but the other way around not, because we don't want to prevent the engine to issue its messages in any way.
+
+* clients cid is recorded on a Byte, so it supports only a value between 0 and 255 (can easily change that to long if necessary).
+
+* When loading a demo on a server that was recorded on another mod than the one currently loaded, when the server will switch automatically the mod, it will disconnect all connected players with the message "Game Directory Changed". This is normal and unavoidable (except if you find a genius way to keep the server running while hotswapping the mod, then submit your patch to ioquake3).
+
+* Non-player entities health is NOT recorded. It could be, now that a get function was done, but it would complexify the code and I'm not sure if this would really benefit something. When entities run out of health, they are anyway destroyed (since their state is recorded), but their health not. This means that the health that is shown in the crosshair when aiming at an entity will not be updated in a demo.
+
+* set_cvar too? and at startup just like configstrings (will avoid timelimit)? Bad idea too.
+
+* Cvars changed in the demo aren't set when replayed, but if they affect an aspect of the gameplay (such as changing g_gravity), it will be reflected in the demo because the whole entities states are recorded, so it will be faithfully reproduced even if the cvars aren't set (if you have a demo where that's not the case, please post it and describe).
+
+* ExcessivePlus: when replaying a demo, democlients whose initial team was spectator can be spectated (but subsequent team change will make them unspectatable if they go to spec).
+
+* ExcessivePlus: when replaying a demo, democlients are not spectatable anymore after a variable amount of time, and are set to Away state. This is because of xp_inactivitySpectator timer. Workaround: try to set xp_inactivitySpectator to 0 or a very high value prior to replay a demo, this should fix the problem.
+
+CHANGELOG (newest to the bottom)
+--------------------------------
+
+* Map not issued after game_restart, either fix or delay a bit
+because after game_restart need to change again sv_democlients and sv_maxclients (add a delay if that doesn't work directly with cbuf_addtext)
+
+* excessiveplus map_restart nonstop (because of vars checking!) - no because of gamecommand setting system reserved configstrings.
+
+* demo messages are too much repeated with excessiveplus. This is because of GameCommands, which are repeated per client connected (weird behaviour, normally only commands broadcasted to everybody, so just sent once, are recorded, so E+ sends multiple times the same command when it shouldn't).
+
+* bots away bug?
+
+* demostop, when from baseoa to excessiveplus demo, then play again and it crashes (was just the last savedFsGame affectation that wasn't right, was not using strcpy).
+
+* bots team joining bug: maybe the strcpy is not right? (see the thing that happened with fs_game - maybe userinfo? when it will be fixed?). SOLUTION: was just g_doWarmup, nothing to do with bots in fact, it just waited for enough players to be playing (and democlients ARE considered to be playing) to start the warmup, without announcing it.
+
+* autorecord doesn't work anymore. look at the log and try old versions. Probably there's a command that is recorded and that shouldn't at the beginning of a map. Solution: forgot to move the check to avoid recording system configstrings.
+
+* Filtering sv_hostname to disallow bad characters such as ":" on Windows OSes. It will still record a demo, but everything behind this name will be dropped. That's why the hostname is set last, to workaround this problem meanwhile.
+
+* demo is already replaying... add message: use demo_stop to stop any recording/replaying and retry
+
+* timelimit, fraglimit, capturelimit store and replay too?
+
+* health gamecode update (set a g_demoPlaying var and from the server I can Cvar_SetValue very easily).
+
+* forceteam spec only if player is connected
+
+* move these writeframe if to functions
+
+* move switch readframe to functions
+
+* auto sv_democlients 0 at startup
+
+* fix writestring warning for configstrings index
+
+* messages again repeated...
+
+* broadcast message cp when demo starts
+
+* g_autoDemo auto disable on demo launching after a certain point (after corruptions and such, just before a map_restart)
+
+* save hostname and restore it after? No because player won't know where they are. We save it, but that's all (can be printed as a demo info like: Demo infos: demo was recorded on server ... at date-time, map, gametype, sv_fps and ...)
+
+* Can't replay a demo when launched by client launcher (can't find the file???)
+
+* team bug set (see current qconsole10.log)
+
+* special variable sv_demoTolerant 1 to enable faults tolerance mode (will be tolerant to parsing errors: 1- pass if illegible message error when reading frames 2- when reading a demo headers, new format: string for the variable name to set, then value, and in a if until string "END" continue to read and set all cvars. This means that by enabling this mode, you can probably read all demos recorded from this version up to any version. So in the future, you will still be able to replay demos recorded with previous versions of this patch (if version >= v0.9.4.3). Concretely, with sv_demoTolerant 1, new demo messages and missing new meta data (meta data implemented later) will just be skipped.
+
+* events messages support for coloured strings (such as coloured names)
+
+* what happens if a cvar is changed during the demo such as gravity? It's ok, if it affects the gameplay, it's reproduced in the demo (and if it does not, then we don't have to care anyway).
+
+* g_gametype not necessarily set back if game_restart (latched but needs another map_restart)
+
+* normal client demo e+ bug -> due to bad refreshing of democlients and svmaxclients (svmaxclients is not refreshed after game_restart). This was because of game_restart mod switch, sv_maxclients nor sv_democlients was set at the right time, so another delay command was issued, which cumulated with previously issued delay commands, and at the end it gave an infinite loop of map_restart (since all delay would trigger non-stop).
+
+* MAJOR BUG: sv_autoDemo 1 and real clients disconnected because of wrong guid at each map change. Was because when filtering userinfo string, it rewritten over the client userinfo string instead of copying it over to another var (so the guid and ip was removed from the client's infos! And the server dropped the clients at the next time they tried to reconnect, such as map change).
+
+* support timescale change when replaying a demo (still a bit buggy with very low values or very high, but it works)
+
+* support for cl_freezeDemo to freeze the demo (works but the camera can't move when in spectator! That's normal since we block the time and so it blocks any movement. This is in fact the same behaviour as in standard demos.)
+
+* sometimes the name is not refreshed, maybe client_t name or netname field is not updated?
+
+* Demo recorded during the warmup ARE buggy (most of the time can't even be replayed!). This is normal (because of the warmup, produces a lot of weird issues), so maybe just detect when it's warmup time and disable auto recording?
+was because of demo initial time that was too small (400) and sv.time too high, even if we just have restarted the map (at least 440 in practice...), so the solution was to let some demo frames replay in the void, so that we can artificially adjust the demo to the current sv.time and then play normally.
+
+* SHA demo stops after a few seconds? lol why?
+
+* dm not working... like SHA, stops after a few seconds
+
+* tourney: demo file is corrupted or quit like dm
+
+* tdm like dm
+
+* overload infinite loop like warmup
+
+* if tourney mode: should NOT issue /team because it will set the player at the end of the list (and cannot be spectated!)
+
+* overload entities bug?
+
+* NET_CompareBaseAdr: bad address type error?
+
+* new players at connection in DM automatically goes to the game
+
+* free malloc'ed strings
+
+* strpy -> Q_strncpyz
+
+* test with other mods
+
+* warmup still recording problem with demo and excessiveplus... - yes but no problem, the demo continues to play
+
+* fix issues with very low timescale (the game speeds up! the rounding in the calculation must be producing a big rounding error somewhere).
+
+* Generations Arena: team management does not work (when a player switch team, he is not affected to the right team)
+
+* E+ now real players join the game...
+
+* E+ democlients are not spectatable, userinfo is not reliable - now update, specs are spectatable...
+
+* cleaned FIXME
+
+* clean code
+
+* Fix inactivity timers (simulate UserMove or just send a fake usercmd_t) - had to craft a remoteAddress with NET_StringToAdr, because else if we just use Info_SetValueForKey(userinfo, "ip", "localhost") the server would remove the ip key in the userinfo because no real address can be found for democlients.
+
+* SV_DemoChangeMaxClients() does not consider privateclients reserved slots when moving clients (eg: with 2 privateslots: 2 -> 12 -> 0)
+
+* many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
+
+* remove developer prints
+>>>>>>> Initial commit
