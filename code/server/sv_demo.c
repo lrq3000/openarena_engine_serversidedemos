@@ -684,9 +684,8 @@ void SV_DemoReadClientCommand( msg_t *msg )
 	num = MSG_ReadByte(msg);
 	cmd = MSG_ReadString(msg);
 
-	if ( ! (strlen(Info_ValueForKey( sv.configstrings[CS_PLAYERS + num], "skill" )) && !Q_strncmp(cmd, "team", 4) ) ) { // FIXME? is bot checking (skill) really necessary?
-		SV_ExecuteClientCommand(&svs.clients[num], cmd, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
-	}
+	SV_ExecuteClientCommand(&svs.clients[num], cmd, qtrue); // 3rd arg = clientOK, and it's necessarily true since we saved the command in the demo (else it wouldn't be saved)
+
 	Cmd_RestoreCmdContext(); // Restore the context (tokenized strings)
 }
 

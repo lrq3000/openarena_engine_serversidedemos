@@ -58,8 +58,6 @@ put this as a separate patch for ioquake3
 TODO
 ----
 
-* remove developer prints
-
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
 
 SHOULD DO (but not now)
@@ -229,3 +227,5 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * SV_DemoChangeMaxClients() does not consider privateclients reserved slots when moving clients (eg: with 2 privateslots: 2 -> 12 -> 0)
 
 * many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
+
+* remove developer prints
