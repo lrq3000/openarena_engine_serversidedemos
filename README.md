@@ -62,10 +62,14 @@ TODO
 
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
 
+* fix: no chat message shown when replaying a demo
+
+* fix: can follow spectators
+
 SHOULD DO (but not now)
 -----------------------
 
-* please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case)
+* please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case - or maybe just move SV_GameSendServerCommand() hook into clientNum == -1 only? Wouldn't that prevent the recording of some other important command strings?)
 
 * when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
@@ -78,6 +82,8 @@ SHOULD DO (but not now)
 	if ( msec < 1 && client->sess.spectatorState != SPECTATOR_FOLLOW ) {
 		return;
 	}
+
+* When demo replaying a demo client-side with mod switching, sv_cheats is disabled (prevent timescale and other commands to be used)
 
 KNOWN BUGS (WONT FIX FOR NOW)
 -----------------------------
