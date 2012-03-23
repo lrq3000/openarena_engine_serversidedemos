@@ -60,11 +60,7 @@ put this as a separate patch for ioquake3
 TODO
 ----
 
-* port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
-
-* fix: no chat message shown when replaying a demo
-
-* fix: can follow spectators
+* None
 
 SHOULD DO (but not now)
 -----------------------
@@ -147,7 +143,7 @@ because after game_restart need to change again sv_democlients and sv_maxclients
 
 * timelimit, fraglimit, capturelimit store and replay too?
 
-* health gamecode update (set a g_demoPlaying var and from the server I can Cvar_SetValue very easily).
+* health gamecode update (set a g_demoPlaying var and from the server I can Cvar_SetValue very easily).
 
 * forceteam spec only if player is connected
 
@@ -237,3 +233,5 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
 
 * remove developer prints
+
+* port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
