@@ -30,7 +30,7 @@ Simply compile the code into a binary, and use these binaries. You do not need t
 
 Servers obviously need these binaries to record and play demos.
 
-Clients also need these binaries to play demos.
+Clients also need these binaries to play demos (unless they connect to a server replaying the demos, in this case they don't need anything).
 
 USAGE
 -----
@@ -53,7 +53,7 @@ DEV NOTES
 ---------
 
 * In msg.c: if ( cl_shownet && ...  IS necessary for the patch to work, else without this consistency check the engine will crash when trying to replay a demo on a server (but it will still work on a client!)
-put this as a separate patch for ioquake3
+NOTE: This was merged in a patch in the ioquake3 project, and this fix is now officially part of the engine.
 
 * usercmd_t management (players movement commands simulation) is implemented but commented out. It fully works, but it's not necessary for the demo functionnalities, and it adds a LOT of data to the demo file, so demo files take a lot more harddrive space when this function is enabled. If you want to do demo analysis, it is advised to turn on this feature, else you should probably not.
 
@@ -66,8 +66,6 @@ SHOULD DO (but not now)
 -----------------------
 
 * please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case)
-
-* when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
 * Delagsimulation when replaying a demo to see in the "eye of the beholder". Probably should be done as a gamecode modification, either at recording by storing the client-side world state after delag, or by simulating the delag at replaying from demo and pings infos (already recorded normally).
 
@@ -85,13 +83,14 @@ Below is a list of known bugs or wished features, but if you encounter them, ple
 
 * save the minimum correct value for sv_democlients when recording: count the total number of clients (>= CS_ZOMBIE) per frame, and the highest number count will be the good number (or just look at the highest clientid reached since client slots are filled in ascending order).
 
-* entityShared_t, entityState_t and playerState_t could be normalized with the other functions to put in write functions and use a marker per entity instead of a marker for a whole lot of entities (but maybe this would require more space? but would maybe be better to read the demo, more coherent: one marker, one event).
+* entityShared_t, entityState_t and playerState_t could be normalized with the other functions to put in write functions and use a marker per entity instead of a marker for a whole lot of entities (but maybe this would require more space? but would maybe be better to read the demo, more coherent: one marker, one event). Because for now, these are the only functions that write ALL data for ALL entities at once, instead of one entity per call, and thus, these functions are managed in a special way compared to others.
 
 * team0 bug at demo start/end: when the server change sv_democlients and sv_maxclients, some data aren't copied over, or the gamecode is not notified of the change. Anyway, all my tries to fix that broke completely the engine (see SV_ChangeMaxClients() in sv_init.c if you want to give it a try). WORKAROUND: now the patch automatically force real clients to spectator, so this should not be an issue anymore (and in fact it happens when the gamecode thinks it's not a team-based gametype, so it makes the clients auto join in, but it's weird that sometimes it does the same thing when its >= GT_TEAM !).
 
-* NOT POSSIBLE (or already done): save all client_t (and clientState_t), player_t (and playerState_t), and gentity_t (sv.gentities) fields (and subfields) in demos. Advantage: theoretically 100% faitful demo. Cons: a big space hog and some fields should NOT be saved or they will cause a weird behaviour of the engine (such as netchan or download management fields).
+* NOT POSSIBLE: save all client_t (and clientState_t), player_t (and playerState_t), and gentity_t (sv.gentities) fields (and subfields) in demos. Advantage: theoretically 100% faitful demo. Cons: a big space hog and some fields should NOT be saved or they will cause a weird behaviour of the engine (such as netchan or download management fields).
 the best would be a polymorphic recursive function that would automatically read the specification of the object given or subobjects and automatically create the good fields, and when reading back the recording it would automatically know how to read the data based on the specification too).
 currently: only gentity_t->entityShared_t and gentity_t->entityState_t and playerState_t are recorded. Other fields (except health and speed) are NOT recorded (eg: gclient_s *client, gitem_t *item, etc..).
+Please note that we already save a maximum of data, in fact all the data that will ever be needed. But this is not generic (we pick each info we want), maybe it would be better to have a generic save function for the whole data structure, easily adaptable to any game that adds more data fields?
 
 * SendConsoleCommand save in demos (will record postgame data and teamtask) G_SEND_CONSOLE_COMMAND and reproduce with Cbuf_ExecuteText( args[1], VMA(2) ); - not a good idea because there are map_restart commands that may be catched, and we don't want that (and without this hook, the patch really works pretty well).
 
@@ -101,7 +100,7 @@ currently: only gentity_t->entityShared_t and gentity_t->entityState_t and playe
 
 * scoreboard is not ordered in descending order of score (except when a player dies, it forces the engine to refresh with the demo's infos) - problem linked to the same cause that produces the ping problem.
 
-* Sometimes (not that it's not always, if it's always that's another bug) print or cp messages are issued more than once. This is a bug caused by the fact that the engine automatically issue messages after some events (such as ClientBegin), but they are also recorded in the demo file. When replaying, there's a check function that tries to avoid duplicates, but sometimes a few cases will slip in: to be more precise, when a game command from the demo file is issued before the event happening in the demo triggers the engine to issue a game command. The other way around (engine game command then demo game command) is already handled, but the other way around not, because we don't want to prevent the engine to issue its messages in any way.
+* Sometimes (not that it's not _always_, if it happens _always_ then that's another bug you should report) print or cp messages are issued more than once. This is a bug caused by the fact that the engine automatically issue messages after some events (such as ClientBegin), but they are also recorded in the demo file. When replaying, there's a check function that tries to avoid duplicates, but sometimes a few cases will slip in: to be more precise, when a game command from the demo file is issued before the event happening in the demo triggers the engine to issue a game command. The other way around (engine game command then demo game command) is already handled, but the other way around not, because we don't want to prevent the engine to issue its messages in any way.
 
 * clients cid is recorded on a Byte, so it supports only a value between 0 and 255 (can easily change that to long if necessary).
 
@@ -114,8 +113,6 @@ currently: only gentity_t->entityShared_t and gentity_t->entityState_t and playe
 * Cvars changed in the demo aren't set when replayed, but if they affect an aspect of the gameplay (such as changing g_gravity), it will be reflected in the demo because the whole entities states are recorded, so it will be faithfully reproduced even if the cvars aren't set (if you have a demo where that's not the case, please post it and describe).
 
 * ExcessivePlus: when replaying a demo, democlients whose initial team was spectator can be spectated (but subsequent team change will make them unspectatable if they go to spec).
-
-* ExcessivePlus: when replaying a demo, democlients are not spectatable anymore after a variable amount of time, and are set to Away state. This is because of xp_inactivitySpectator timer. Workaround: try to set xp_inactivitySpectator to 0 or a very high value prior to replay a demo, this should fix the problem.
 
 CHANGELOG (newest to the bottom)
 --------------------------------
@@ -231,5 +228,9 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * many "A demo is already being recorded/played. Use demo_stop and retry." messages printed when playing a demo client-side.
 
 * remove developer prints
+
+* ExcessivePlus: when replaying a demo, democlients are not spectatable anymore after a variable amount of time, and are set to Away state. This is because of xp_inactivitySpectator timer. This was fixed by setting an appropriate localhost remote addr for the demo clients.
+
+* when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
