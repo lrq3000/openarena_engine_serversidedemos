@@ -9,6 +9,8 @@ The approach used here is entity/event oriented demo recording, which means that
 
 This implementation has been made as generic as possible, and so it should work for any mod based on ioquake3 or Quake 3 Arena. It was also cleaned up and separated as much as possible from the core code, leaving a minimum of changes to the core files, so it should be easily portable to any version of ioquake3 >= r1910 (maybe also with a few prior versions).
 
+This patch here (in "master" branch) is against OA v0.8.8. For the patch against OA+ioquake3, see the "latest" branch.
+
 FEATURES
 --------
 
