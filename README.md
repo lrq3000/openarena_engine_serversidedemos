@@ -51,7 +51,7 @@ DEV NOTES
 ---------
 
 * In msg.c: if ( cl_shownet && ...  IS necessary for the patch to work, else without this consistency check the engine will crash when trying to replay a demo on a server (but it will still work on a client!)
-put this as a separate patch for ioquake3
+NOTE: This was merged in a patch in the ioquake3 project, and this fix is now officially part of the engine.
 
 * usercmd_t management (players movement commands simulation) is implemented but commented out. It fully works, but it's not necessary for the demo functionnalities, and it adds a LOT of data to the demo file, so demo files take a lot more harddrive space when this function is enabled. If you want to do demo analysis, it is advised to turn on this feature, else you should probably not.
 
@@ -65,8 +65,6 @@ SHOULD DO (but not now)
 -----------------------
 
 * please wait before switching teams should not be printed (but it's a standard gameCommand, fixing it would be very unelegant and add a lot of complexity to the code for such a special case)
-
-* when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
 * Delagsimulation when replaying a demo to see in the "eye of the beholder". Probably should be done as a gamecode modification, either at recording by storing the client-side world state after delag, or by simulating the delag at replaying from demo and pings infos (already recorded normally).
 
@@ -231,3 +229,5 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * remove developer prints
 
 * ExcessivePlus: when replaying a demo, democlients are not spectatable anymore after a variable amount of time, and are set to Away state. This is because of xp_inactivitySpectator timer. This was fixed by setting an appropriate localhost remote addr for the demo clients.
+
+* when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
