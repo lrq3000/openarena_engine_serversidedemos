@@ -849,7 +849,8 @@ ifneq ($(BUILD_CLIENT),0)
   ifneq ($(USE_RENDERER_DLOPEN),0)
     TARGETS += $(B)/$(CLIENTBIN)$(FULLBINEXT) $(B)/renderer_opengl1_$(SHLIBNAME)
     TARGETS += $(B)/renderer_openarena1_$(SHLIBNAME)
-      TARGETS += $(B)/renderer_opengl2_$(SHLIBNAME)
+    ifneq ($(BUILD_CLIENT_SMP),0)
+      TARGETS += $(B)/renderer_opengl1_smp_$(SHLIBNAME)
       TARGETS += $(B)/renderer_openarena1_smp_$(SHLIBNAME)
     endif
   else
@@ -2841,9 +2842,17 @@ ifneq ($(BUILD_CLIENT),0)
 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/renderer_opengl1_$(SHLIBNAME) $(COPYBINDIR)/renderer_opengl1_$(SHLIBNAME)
 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/renderer_openarena1_$(SHLIBNAME) $(COPYBINDIR)/renderer_openarena1_$(SHLIBNAME)
 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/renderer_opengl2_$(SHLIBNAME) $(COPYBINDIR)/renderer_opengl2_$(SHLIBNAME)
-    endif
   endif
+endif
+
+# Don't copy the SMP until it's working together with SDL.
+ifneq ($(BUILD_CLIENT_SMP),0)
+  ifneq ($(USE_RENDERER_DLOPEN),0)
+	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/renderer_opengl1_smp_$(SHLIBNAME) $(COPYBINDIR)/renderer_opengl1_smp_$(SHLIBNAME)
 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/renderer_openarena1_smp_$(SHLIBNAME) $(COPYBINDIR)/renderer_openarena1_smp_$(SHLIBNAME)
+  else
+	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/$(CLIENTBIN)-smp$(FULLBINEXT) $(COPYBINDIR)/$(CLIENTBIN)-smp$(FULLBINEXT)
+  endif
 endif
 
 ifneq ($(BUILD_SERVER),0)
