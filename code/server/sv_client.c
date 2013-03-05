@@ -853,6 +853,9 @@ Downloads are finished
 ==================
 */
 static void SV_DoneDownload_f( client_t *cl ) {
+	if ( cl->state == CS_ACTIVE )
+		return;
+
 	Com_DPrintf( "clientDownload: %s Done\n", cl->name);
 	// resend the game state to update any clients that entered during the download
 	SV_SendClientGameState(cl);
@@ -999,7 +1002,7 @@ int SV_WriteDownloadToClient(client_t *cl, msg_t *msg)
 			else if ( !(sv_allowDownload->integer & DLF_ENABLE) ||
 				(sv_allowDownload->integer & DLF_NO_UDP) ) {
 
-				Com_Printf("clientDownload: %d : \"%s\" download disabled", (int) (cl - svs.clients), cl->downloadName);
+				Com_Printf("clientDownload: %d : \"%s\" download disabled\n", (int) (cl - svs.clients), cl->downloadName);
 				if (sv_pure->integer) {
 					Com_sprintf(errorMessage, sizeof(errorMessage), "Could not download \"%s\" because autodownloading is disabled on the server.\n\n"
 										"You will need to get this file elsewhere before you "
@@ -1966,15 +1969,19 @@ void SV_ExecuteClientMessage( client_t *cl, msg_t *msg ) {
 		}
 	} while ( 1 );
 
+	// read optional voip data
+	if ( c == clc_voip ) {
+#ifdef USE_VOIP
+		SV_UserVoip( cl, msg );
+		c = MSG_ReadByte( msg );
+#endif
+	}
+
 	// read the usercmd_t
 	if ( c == clc_move ) {
 		SV_UserMove( cl, msg, qtrue );
 	} else if ( c == clc_moveNoDelta ) {
 		SV_UserMove( cl, msg, qfalse );
-	} else if ( c == clc_voip ) {
-#ifdef USE_VOIP
-		SV_UserVoip( cl, msg );
-#endif
 	} else if ( c != clc_EOF ) {
 		Com_Printf( "WARNING: bad command byte for client %i\n", (int) (cl - svs.clients) );
 	}

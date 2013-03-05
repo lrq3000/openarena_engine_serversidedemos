@@ -95,9 +95,6 @@ float	MSG_ReadAngle16 (msg_t *sb);
 void	MSG_ReadData (msg_t *sb, void *buffer, int size);
 int		MSG_LookaheadByte (msg_t *msg);
 
-void MSG_WriteDeltaUsercmd( msg_t *msg, struct usercmd_s *from, struct usercmd_s *to );
-void MSG_ReadDeltaUsercmd( msg_t *msg, struct usercmd_s *from, struct usercmd_s *to );
-
 void MSG_WriteDeltaUsercmdKey( msg_t *msg, int key, usercmd_t *from, usercmd_t *to );
 void MSG_ReadDeltaUsercmdKey( msg_t *msg, int key, usercmd_t *from, usercmd_t *to );
 
@@ -135,6 +132,8 @@ NET
 #define	PACKET_MASK		(PACKET_BACKUP-1)
 
 #define	MAX_PACKET_USERCMDS		32		// max number of usercmd_t in a packet
+
+#define	MAX_SNAPSHOT_ENTITIES	256
 
 #define	PORT_ANY			-1
 
@@ -591,7 +590,6 @@ issues.
 #define FS_GENERAL_REF	0x01
 #define FS_UI_REF		0x02
 #define FS_CGAME_REF	0x04
-#define FS_QAGAME_REF	0x08
 // number of id paks that will never be autodownloaded from baseq3/missionpack
 #define NUM_ID_PAKS		9
 #define NUM_TA_PAKS		4
@@ -700,9 +698,6 @@ int		FS_Seek( fileHandle_t f, long offset, int origin );
 
 qboolean FS_FilenameCompare( const char *s1, const char *s2 );
 
-const char *FS_GamePureChecksum( void );
-// Returns the checksum of the pk3 from which the server loaded the qagame.qvm
-
 const char *FS_LoadedPakNames( void );
 const char *FS_LoadedPakChecksums( void );
 const char *FS_LoadedPakPureChecksums( void );
@@ -799,7 +794,7 @@ typedef enum {
 	SE_NONE = 0,		// evTime is still valid
 	SE_KEY,			// evValue is a key code, evValue2 is the down flag
 	SE_CHAR,		// evValue is an ascii char
-	SE_MOUSE,		// evValue and evValue2 are reletive signed x / y moves
+	SE_MOUSE,		// evValue and evValue2 are relative signed x / y moves
 	SE_JOYSTICK_AXIS,	// evValue is an axis number and evValue2 is the current state (-127 to 127)
 	SE_CONSOLE		// evPtr is a char*
 } sysEventType_t;
@@ -1093,8 +1088,6 @@ void	Sys_Print( const char *msg );
 // any game related timing information should come from event timestamps
 int		Sys_Milliseconds (void);
 
-void	Sys_SnapVector( float *v );
-
 qboolean Sys_RandomBytes( byte *string, int len );
 
 // the system console is shown when a dedicated server is running
@@ -1112,6 +1105,7 @@ qboolean	Sys_StringToAdr( const char *s, netadr_t *a, netadrtype_t family );
 qboolean	Sys_IsLANAddress (netadr_t adr);
 void		Sys_ShowIP(void);
 
+FILE	*Sys_FOpen( const char *ospath, const char *mode );
 qboolean Sys_Mkdir( const char *path );
 FILE	*Sys_Mkfifo( const char *ospath );
 char	*Sys_Cwd( void );
@@ -1124,7 +1118,6 @@ char    *Sys_DefaultAppPath(void);
 
 void  Sys_SetDefaultHomePath(const char *path);
 char	*Sys_DefaultHomePath(void);
-const char	*Sys_TempPath(void);
 const char *Sys_Dirname( char *path );
 const char *Sys_Basename( char *path );
 char *Sys_ConsoleInput(void);

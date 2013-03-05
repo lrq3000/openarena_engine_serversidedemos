@@ -236,7 +236,7 @@ typedef struct {
 	int			snapFlagServerBit;			// ^= SNAPFLAG_SERVERCOUNT every SV_SpawnServer()
 
 	client_t	*clients;					// [sv_maxclients->integer];
-	int			numSnapshotEntities;		// sv_maxclients->integer*PACKET_BACKUP*MAX_PACKET_ENTITIES
+	int			numSnapshotEntities;		// sv_maxclients->integer*PACKET_BACKUP*MAX_SNAPSHOT_ENTITIES
 	int			nextSnapshotEntities;		// next snapshotEntities to use
 	entityState_t	*snapshotEntities;		// [numSnapshotEntities]
 	int			nextHeartbeatTime;
@@ -423,7 +423,7 @@ void SV_UnlinkEntity( sharedEntity_t *ent );
 void SV_LinkEntity( sharedEntity_t *ent );
 // Needs to be called any time an entity changes origin, mins, maxs,
 // or solid.  Automatically unlinks if needed.
-// sets ent->v.absmin and ent->v.absmax
+// sets ent->r.absmin and ent->r.absmax
 // sets ent->leafnums[] for pvs determination even if the entity
 // is not solid
 

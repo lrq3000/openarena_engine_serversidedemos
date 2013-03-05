@@ -53,7 +53,7 @@ char *Sys_DefaultHomePath(void)
 {
 	char *p;
 
-	if( !*homePath )
+	if( !*homePath && com_homepath != NULL )
 	{
 		if( ( p = getenv( "HOME" ) ) != NULL )
 		{
@@ -77,23 +77,6 @@ char *Sys_DefaultHomePath(void)
 
 	return homePath;
 }
-
-#ifndef MACOS_X
-/*
-================
-Sys_TempPath
-================
-*/
-const char *Sys_TempPath( void )
-{
-	const char *TMPDIR = getenv( "TMPDIR" );
-
-	if( TMPDIR == NULL || TMPDIR[ 0 ] == '\0' )
-		return "/tmp";
-	else
-		return TMPDIR;
-}
-#endif
 
 /*
 ================
@@ -207,6 +190,21 @@ Sys_Dirname
 const char *Sys_Dirname( char *path )
 {
 	return dirname( path );
+}
+
+/*
+==============
+Sys_FOpen
+==============
+*/
+FILE *Sys_FOpen( const char *ospath, const char *mode ) {
+	struct stat buf;
+
+	// check if path exists and is a directory
+	if ( !stat( ospath, &buf ) && S_ISDIR( buf.st_mode ) )
+		return NULL;
+
+	return fopen( ospath, mode );
 }
 
 /*

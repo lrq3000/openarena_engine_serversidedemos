@@ -252,7 +252,7 @@ void CL_ParseSnapshot( msg_t *msg ) {
 			// The frame that the server did the delta from
 			// is too old, so we can't reconstruct it properly.
 			Com_Printf ("Delta frame too old.\n");
-		} else if ( cl.parseEntitiesNum - old->parseEntitiesNum > MAX_PARSE_ENTITIES-128 ) {
+		} else if ( cl.parseEntitiesNum - old->parseEntitiesNum > MAX_PARSE_ENTITIES - MAX_SNAPSHOT_ENTITIES ) {
 			Com_Printf ("Delta parseEntitiesNum too old.\n");
 		} else {
 			newSnap.valid = qtrue;	// valid delta parse
@@ -538,10 +538,10 @@ void CL_ParseGamestate( msg_t *msg ) {
 		CL_StopRecord_f();
 	
 	// reinitialize the filesystem if the game directory has changed
-	if(!cls.oldGameSet && (Cvar_Flags("fs_game") & CVAR_MODIFIED))
+	if(!cl_oldGameSet && (Cvar_Flags("fs_game") & CVAR_MODIFIED))
 	{
-		cls.oldGameSet = qtrue;
-		Q_strncpyz(cls.oldGame, oldGame, sizeof(cls.oldGame));
+		cl_oldGameSet = qtrue;
+		Q_strncpyz(cl_oldGame, oldGame, sizeof(cl_oldGame));
 	}
 
 	FS_ConditionalRestart(clc.checksumFeed, qfalse);
@@ -769,7 +769,7 @@ void CL_ParseVoip ( msg_t *msg ) {
 		// reset the bits just in case.
 		speex_bits_reset(&clc.speexDecoderBits[sender]);
 		seqdiff = 0;
-	} else if (seqdiff > 100) { // more than 2 seconds of audio dropped?
+	} else if (seqdiff * clc.speexFrameSize * 2 >= sizeof (decoded)) { // dropped more than we can handle?
 		// just start over.
 		Com_DPrintf("VoIP: Dropped way too many (%d) frames from client #%d\n",
 		            seqdiff, sender);

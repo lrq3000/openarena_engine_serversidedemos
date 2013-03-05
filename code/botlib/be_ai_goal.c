@@ -300,7 +300,7 @@ itemconfig_t *LoadItemConfig(char *filename)
 		{
 			if (ic->numiteminfo >= max_iteminfo)
 			{
-				SourceError(source, "more than %d item info defined\n", max_iteminfo);
+				SourceError(source, "more than %d item info defined", max_iteminfo);
 				FreeMemory(ic);
 				FreeSource(source);
 				return NULL;
@@ -310,7 +310,7 @@ itemconfig_t *LoadItemConfig(char *filename)
 			if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 			{
 				FreeMemory(ic);
-				FreeMemory(source);
+				FreeSource(source);
 				return NULL;
 			} //end if
 			StripDoubleQuotes(token.string);
@@ -326,7 +326,7 @@ itemconfig_t *LoadItemConfig(char *filename)
 		} //end if
 		else
 		{
-			SourceError(source, "unknown definition %s\n", token.string);
+			SourceError(source, "unknown definition %s", token.string);
 			FreeMemory(ic);
 			FreeSource(source);
 			return NULL;
@@ -558,10 +558,9 @@ void BotInitLevelItems(void)
 	//if there's no AAS file loaded
 	if (!AAS_Loaded()) return;
 
-	//update the modelindexes of the item info
+	//validate the modelindexes of the item info
 	for (i = 0; i < ic->numiteminfo; i++)
 	{
-		//ic->iteminfo[i].modelindex = AAS_IndexFromModel(ic->iteminfo[i].model);
 		if (!ic->iteminfo[i].modelindex)
 		{
 			Log_Write("item %s has modelindex 0", ic->iteminfo[i].classname);
@@ -1018,7 +1017,7 @@ void BotUpdateEntityItems(void)
 	for (li = levelitems; li; li = nextli)
 	{
 		nextli = li->next;
-		//if it is a item that will time out
+		//if it is an item that will time out
 		if (li->timeout)
 		{
 			//timeout the item

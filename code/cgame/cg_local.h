@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 //
 #include "../qcommon/q_shared.h"
-#include "../renderer/tr_types.h"
+#include "../renderercommon/tr_types.h"
 #include "../game/bg_public.h"
 #include "cg_public.h"
 
@@ -590,10 +590,12 @@ typedef struct {
 	int			soundTime;
 	qhandle_t	soundBuffer[MAX_SOUNDBUFFER];
 
+#ifdef MISSIONPACK
 	// for voice chat buffer
 	int			voiceChatTime;
 	int			voiceChatBufferIn;
 	int			voiceChatBufferOut;
+#endif
 
 	// warmup countdown
 	int			warmup;
@@ -767,8 +769,10 @@ typedef struct {
 	qhandle_t	battleSuitShader;
 	qhandle_t	battleWeaponShader;
 	qhandle_t	hastePuffShader;
+#ifdef MISSIONPACK
 	qhandle_t	redKamikazeShader;
 	qhandle_t	blueKamikazeShader;
+#endif
 
 	// weapon effect models
 	qhandle_t	bulletFlashModel;
@@ -802,8 +806,8 @@ typedef struct {
 	qhandle_t	medkitUsageModel;
 	qhandle_t	dustPuffShader;
 	qhandle_t	heartShader;
-#endif
 	qhandle_t	invulnerabilityPowerupModel;
+#endif
 
 	// scoreboard headers
 	qhandle_t	scoreboardName;
@@ -908,7 +912,9 @@ typedef struct {
 	sfxHandle_t flightSound;
 	sfxHandle_t medkitSound;
 
+#ifdef MISSIONPACK
 	sfxHandle_t weaponHoverSound;
+#endif
 
 	// teamplay sounds
 	sfxHandle_t captureAwardSound;
@@ -927,13 +933,17 @@ typedef struct {
 
 	sfxHandle_t redFlagReturnedSound;
 	sfxHandle_t blueFlagReturnedSound;
+#ifdef MISSIONPACK
 	sfxHandle_t neutralFlagReturnedSound;
+#endif
 	sfxHandle_t	enemyTookYourFlagSound;
-	sfxHandle_t	enemyTookTheFlagSound;
 	sfxHandle_t yourTeamTookEnemyFlagSound;
-	sfxHandle_t yourTeamTookTheFlagSound;
 	sfxHandle_t	youHaveFlagSound;
+#ifdef MISSIONPACK
+	sfxHandle_t	enemyTookTheFlagSound;
+	sfxHandle_t yourTeamTookTheFlagSound;
 	sfxHandle_t yourBaseIsUnderAttackSound;
+#endif
 	sfxHandle_t holyShitSound;
 
 	// tournament sounds
@@ -960,10 +970,11 @@ typedef struct {
 	sfxHandle_t doublerSound;
 	sfxHandle_t guardSound;
 	sfxHandle_t scoutSound;
-#endif
+
 	qhandle_t cursor;
 	qhandle_t selectCursor;
 	qhandle_t sizeCursor;
+#endif
 
 	sfxHandle_t	regenSound;
 	sfxHandle_t	protectSound;
@@ -1145,8 +1156,10 @@ extern	vmCvar_t		cg_predictItems;
 extern	vmCvar_t		cg_deferPlayers;
 extern	vmCvar_t		cg_drawFriend;
 extern	vmCvar_t		cg_teamChatsOnly;
+#ifdef MISSIONPACK
 extern	vmCvar_t		cg_noVoiceChats;
 extern	vmCvar_t		cg_noVoiceText;
+#endif
 extern  vmCvar_t		cg_scorePlum;
 extern	vmCvar_t		cg_smoothClients;
 extern	vmCvar_t		pmove_fixed;
@@ -1329,7 +1342,7 @@ void CG_PainEvent( centity_t *cent, int health );
 void CG_SetEntitySoundPosition( centity_t *cent );
 void CG_AddPacketEntities( void );
 void CG_Beam( centity_t *cent );
-void CG_AdjustPositionForMover( const vec3_t in, int moverNum, int fromTime, int toTime, vec3_t out );
+void CG_AdjustPositionForMover(const vec3_t in, int moverNum, int fromTime, int toTime, vec3_t out, vec3_t angles_in, vec3_t angles_out);
 
 void CG_PositionEntityOnTag( refEntity_t *entity, const refEntity_t *parent, 
 							qhandle_t parentModel, char *tagName );
@@ -1445,10 +1458,12 @@ void CG_InitConsoleCommands( void );
 void CG_ExecuteNewServerCommands( int latestSequence );
 void CG_ParseServerinfo( void );
 void CG_SetConfigValues( void );
-void CG_LoadVoiceChats( void );
 void CG_ShaderStateChanged(void);
+#ifdef MISSIONPACK
+void CG_LoadVoiceChats( void );
 void CG_VoiceChatLocal( int mode, qboolean voiceOnly, int clientNum, int color, const char *cmd );
 void CG_PlayBufferedVoiceChats( void );
+#endif
 
 //
 // cg_playerstate.c
@@ -1503,6 +1518,7 @@ void		trap_SendConsoleCommand( const char *text );
 // register a command name so the console can perform command completion.
 // FIXME: replace this with a normal console command "defineCommand"?
 void		trap_AddCommand( const char *cmdName );
+void		trap_RemoveCommand( const char *cmdName );
 
 // send a string to the server over the network
 void		trap_SendClientCommand( const char *s );
@@ -1520,7 +1536,14 @@ int			trap_CM_TransformedPointContents( const vec3_t p, clipHandle_t model, cons
 void		trap_CM_BoxTrace( trace_t *results, const vec3_t start, const vec3_t end,
 					  const vec3_t mins, const vec3_t maxs,
 					  clipHandle_t model, int brushmask );
+void		trap_CM_CapsuleTrace( trace_t *results, const vec3_t start, const vec3_t end,
+					  const vec3_t mins, const vec3_t maxs,
+					  clipHandle_t model, int brushmask );
 void		trap_CM_TransformedBoxTrace( trace_t *results, const vec3_t start, const vec3_t end,
+					  const vec3_t mins, const vec3_t maxs,
+					  clipHandle_t model, int brushmask,
+					  const vec3_t origin, const vec3_t angles );
+void		trap_CM_TransformedCapsuleTrace( trace_t *results, const vec3_t start, const vec3_t end,
 					  const vec3_t mins, const vec3_t maxs,
 					  clipHandle_t model, int brushmask,
 					  const vec3_t origin, const vec3_t angles );
@@ -1570,6 +1593,7 @@ void		trap_R_AddRefEntityToScene( const refEntity_t *re );
 void		trap_R_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts );
 void		trap_R_AddPolysToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int numPolys );
 void		trap_R_AddLightToScene( const vec3_t org, float intensity, float r, float g, float b );
+void		trap_R_AddAdditiveLightToScene( const vec3_t org, float intensity, float r, float g, float b );
 int			trap_R_LightForPoint( vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );
 void		trap_R_RenderScene( const refdef_t *fd );
 void		trap_R_SetColor( const float *rgba );	// NULL = 1,1,1,1
@@ -1579,6 +1603,7 @@ void		trap_R_ModelBounds( clipHandle_t model, vec3_t mins, vec3_t maxs );
 int			trap_R_LerpTag( orientation_t *tag, clipHandle_t mod, int startFrame, int endFrame, 
 					   float frac, const char *tagName );
 void		trap_R_RemapShader( const char *oldShader, const char *newShader, const char *timeOffset );
+qboolean	trap_R_inPVS( const vec3_t p1, const vec3_t p2 );
 
 // The glconfig_t will not change during the life of a cgame.
 // If it needs to change, the entire cgame will be restarted, because
@@ -1640,7 +1665,8 @@ e_status trap_CIN_RunCinematic (int handle);
 void trap_CIN_DrawCinematic (int handle);
 void trap_CIN_SetExtents (int handle, int x, int y, int w, int h);
 
-void trap_SnapVector( float *v );
+int			trap_RealTime(qtime_t *qtime);
+void		trap_SnapVector( float *v );
 
 qboolean	trap_loadCamera(const char *name);
 void		trap_startCamera(int time);

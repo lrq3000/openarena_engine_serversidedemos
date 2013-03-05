@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #	include <SDL.h>
 #endif
 
-#include "../renderer/tr_local.h"
+#include "../renderercommon/tr_common.h"
 #include "../qcommon/qcommon.h"
 
 /*
@@ -39,7 +39,7 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 	Uint16 table[3][256];
 	int i, j;
 
-	if( !glConfig.deviceSupportsGamma || r_ignorehwgamma->integer )
+	if( !glConfig.deviceSupportsGamma || r_ignorehwgamma->integer > 0 )
 		return;
 
 	for (i = 0; i < 256; i++)

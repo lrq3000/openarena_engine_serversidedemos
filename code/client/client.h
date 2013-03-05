@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
-#include "../renderer/tr_public.h"
+#include "../renderercommon/tr_public.h"
 #include "../ui/ui_public.h"
 #include "keys.h"
 #include "snd_public.h"
@@ -87,7 +87,7 @@ typedef struct {
 // the parseEntities array must be large enough to hold PACKET_BACKUP frames of
 // entities, so that when a delta compressed message arives from the server
 // it can be un-deltad from the original 
-#define	MAX_PARSE_ENTITIES	2048
+#define	MAX_PARSE_ENTITIES	( PACKET_BACKUP * MAX_SNAPSHOT_ENTITIES )
 
 extern int g_console_field_width;
 
@@ -280,6 +280,7 @@ extern	clientConnection_t clc;
 
 the clientStatic_t structure is never wiped, and is used even when
 no client connection is active at all
+(except when CL_Shutdown is called)
 
 ==================================================================
 */
@@ -338,9 +339,6 @@ typedef struct {
 	serverInfo_t	favoriteServers[MAX_OTHER_SERVERS];
 
 	int pingUpdateSource;		// source currently pinging or updating
-	
-	char		oldGame[MAX_QPATH];
-	qboolean	oldGameSet;
 
 	// update server info
 	netadr_t	updateServer;
@@ -357,6 +355,9 @@ typedef struct {
 } clientStatic_t;
 
 extern	clientStatic_t		cls;
+
+extern	char		cl_oldGame[MAX_QPATH];
+extern	qboolean	cl_oldGameSet;
 
 //=============================================================================
 

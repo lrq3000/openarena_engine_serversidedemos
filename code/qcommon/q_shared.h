@@ -850,7 +850,7 @@ void Com_TruncateLongString( char *buffer, const char *s );
 //
 char *Info_ValueForKey( const char *s, const char *key );
 void Info_RemoveKey( char *s, const char *key );
-void Info_RemoveKey_big( char *s, const char *key );
+void Info_RemoveKey_Big( char *s, const char *key );
 void Info_SetValueForKey( char *s, const char *key, const char *value );
 void Info_SetValueForKey_Big( char *s, const char *key, const char *value );
 qboolean Info_Validate( const char *s );
@@ -1007,7 +1007,7 @@ typedef struct {
 // or ENTITYNUM_NONE, ENTITYNUM_WORLD
 
 
-// markfragments are returned by CM_MarkFragments()
+// markfragments are returned by R_MarkFragments()
 typedef struct {
 	int		firstPoint;
 	int		numPoints;
@@ -1143,7 +1143,7 @@ typedef struct playerState_s {
 	int			torsoTimer;		// don't change low priority animations until this runs out
 	int			torsoAnim;		// mask off ANIM_TOGGLEBIT
 
-	int			movementDir;	// a number 0 to 7 that represents the reletive angle
+	int			movementDir;	// a number 0 to 7 that represents the relative angle
 								// of movement to the view angle (axial and diagonals)
 								// when at rest, the value will remain unchanged
 								// used to twist the legs during strafing
@@ -1184,7 +1184,7 @@ typedef struct playerState_s {
 
 	// not communicated over the net at all
 	int			ping;			// server to game info for scoreboard
-	int			pmove_framecount;	// FIXME: don't transmit over the network
+	int			pmove_framecount;
 	int			jumppad_frame;
 	int			entityEventSequence;
 } playerState_t;
@@ -1277,7 +1277,7 @@ typedef struct entityState_s {
 	int		otherEntityNum;	// shotgun sources, etc
 	int		otherEntityNum2;
 
-	int		groundEntityNum;	// -1 = in air
+	int		groundEntityNum;	// ENTITYNUM_NONE = in air
 
 	int		constantLight;	// r + (g<<8) + (b<<16) + (intensity<<24)
 	int		loopSound;		// constantly loop this sound

@@ -26,21 +26,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #	include <SDL.h>
 #endif
 
-#ifdef SMP
-#	ifdef USE_LOCAL_HEADERS
-#		include "SDL_thread.h"
-#	else
-#		include <SDL_thread.h>
-#	endif
-#endif
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-#include "../renderer/tr_local.h"
-#include "../client/client.h"
+#include "../renderercommon/tr_common.h"
 #include "../sys/sys_local.h"
 #include "sdl_icon.h"
 
@@ -94,9 +85,6 @@ void GLimp_Shutdown( void )
 
 	SDL_QuitSubSystem( SDL_INIT_VIDEO );
 	screen = NULL;
-
-	Com_Memset( &glConfig, 0, sizeof( glConfig ) );
-	Com_Memset( &glState, 0, sizeof( glState ) );
 }
 
 /*
@@ -250,7 +238,25 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder)
 
 	ri.Printf (PRINT_ALL, "...setting mode %d:", mode );
 
-	if ( !R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, mode ) )
+	if (mode == -2)
+	{
+		// use desktop video resolution
+		if( videoInfo->current_h > 0 )
+		{
+			glConfig.vidWidth = videoInfo->current_w;
+			glConfig.vidHeight = videoInfo->current_h;
+		}
+		else
+		{
+			glConfig.vidWidth = 640;
+			glConfig.vidHeight = 480;
+			ri.Printf( PRINT_ALL,
+					"Cannot determine display resolution, assuming 640x480\n" );
+		}
+
+		glConfig.windowAspect = (float)glConfig.vidWidth / (float)glConfig.vidHeight;
+	}
+	else if ( !R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, &glConfig.windowAspect, mode ) )
 	{
 		ri.Printf( PRINT_ALL, " invalid mode\n" );
 		return RSERR_INVALID_MODE;
@@ -733,6 +739,12 @@ success:
 	// http://bugzilla.icculus.org/show_bug.cgi?id=4316
 	glConfig.deviceSupportsGamma = SDL_SetGamma( 1.0f, 1.0f, 1.0f ) >= 0;
 
+	if ( -1 == r_ignorehwgamma->integer)
+		glConfig.deviceSupportsGamma = 1;
+
+	if ( 1 == r_ignorehwgamma->integer)
+		glConfig.deviceSupportsGamma = 0;
+
 	// get our config strings
 	Q_strncpyz( glConfig.vendor_string, (char *) qglGetString (GL_VENDOR), sizeof( glConfig.vendor_string ) );
 	Q_strncpyz( glConfig.renderer_string, (char *) qglGetString (GL_RENDERER), sizeof( glConfig.renderer_string ) );
@@ -804,245 +816,3 @@ void GLimp_EndFrame( void )
 		r_fullscreen->modified = qfalse;
 	}
 }
-
-
-
-#ifdef SMP
-/*
-===========================================================
-
-SMP acceleration
-
-===========================================================
-*/
-
-/*
- * I have no idea if this will even work...most platforms don't offer
- * thread-safe OpenGL libraries, and it looks like the original Linux
- * code counted on each thread claiming the GL context with glXMakeCurrent(),
- * which you can't currently do in SDL. We'll just have to hope for the best.
- */
-
-static SDL_mutex *smpMutex = NULL;
-static SDL_cond *renderCommandsEvent = NULL;
-static SDL_cond *renderCompletedEvent = NULL;
-static void (*glimpRenderThread)( void ) = NULL;
-static SDL_Thread *renderThread = NULL;
-
-/*
-===============
-GLimp_ShutdownRenderThread
-===============
-*/
-static void GLimp_ShutdownRenderThread(void)
-{
-	if (smpMutex != NULL)
-	{
-		SDL_DestroyMutex(smpMutex);
-		smpMutex = NULL;
-	}
-
-	if (renderCommandsEvent != NULL)
-	{
-		SDL_DestroyCond(renderCommandsEvent);
-		renderCommandsEvent = NULL;
-	}
-
-	if (renderCompletedEvent != NULL)
-	{
-		SDL_DestroyCond(renderCompletedEvent);
-		renderCompletedEvent = NULL;
-	}
-
-	glimpRenderThread = NULL;
-}
-
-/*
-===============
-GLimp_RenderThreadWrapper
-===============
-*/
-static int GLimp_RenderThreadWrapper( void *arg )
-{
-	Com_Printf( "Render thread starting\n" );
-
-	glimpRenderThread();
-
-	GLimp_SetCurrentContext(NULL);
-
-	Com_Printf( "Render thread terminating\n" );
-
-	return 0;
-}
-
-/*
-===============
-GLimp_SpawnRenderThread
-===============
-*/
-qboolean GLimp_SpawnRenderThread( void (*function)( void ) )
-{
-	static qboolean warned = qfalse;
-	if (!warned)
-	{
-		Com_Printf("WARNING: You enable r_smp at your own risk!\n");
-		warned = qtrue;
-	}
-
-#ifndef MACOS_X
-	return qfalse;  /* better safe than sorry for now. */
-#endif
-
-	if (renderThread != NULL)  /* hopefully just a zombie at this point... */
-	{
-		Com_Printf("Already a render thread? Trying to clean it up...\n");
-		SDL_WaitThread(renderThread, NULL);
-		renderThread = NULL;
-		GLimp_ShutdownRenderThread();
-	}
-
-	smpMutex = SDL_CreateMutex();
-	if (smpMutex == NULL)
-	{
-		Com_Printf( "smpMutex creation failed: %s\n", SDL_GetError() );
-		GLimp_ShutdownRenderThread();
-		return qfalse;
-	}
-
-	renderCommandsEvent = SDL_CreateCond();
-	if (renderCommandsEvent == NULL)
-	{
-		Com_Printf( "renderCommandsEvent creation failed: %s\n", SDL_GetError() );
-		GLimp_ShutdownRenderThread();
-		return qfalse;
-	}
-
-	renderCompletedEvent = SDL_CreateCond();
-	if (renderCompletedEvent == NULL)
-	{
-		Com_Printf( "renderCompletedEvent creation failed: %s\n", SDL_GetError() );
-		GLimp_ShutdownRenderThread();
-		return qfalse;
-	}
-
-	glimpRenderThread = function;
-	renderThread = SDL_CreateThread(GLimp_RenderThreadWrapper, NULL);
-	if ( renderThread == NULL )
-	{
-		ri.Printf( PRINT_ALL, "SDL_CreateThread() returned %s", SDL_GetError() );
-		GLimp_ShutdownRenderThread();
-		return qfalse;
-	}
-	else
-	{
-		// tma 01/09/07: don't think this is necessary anyway?
-		//
-		// !!! FIXME: No detach API available in SDL!
-		//ret = pthread_detach( renderThread );
-		//if ( ret ) {
-		//ri.Printf( PRINT_ALL, "pthread_detach returned %d: %s", ret, strerror( ret ) );
-		//}
-	}
-
-	return qtrue;
-}
-
-static volatile void    *smpData = NULL;
-static volatile qboolean smpDataReady;
-
-/*
-===============
-GLimp_RendererSleep
-===============
-*/
-void *GLimp_RendererSleep( void )
-{
-	void  *data = NULL;
-
-	GLimp_SetCurrentContext(NULL);
-
-	SDL_LockMutex(smpMutex);
-	{
-		smpData = NULL;
-		smpDataReady = qfalse;
-
-		// after this, the front end can exit GLimp_FrontEndSleep
-		SDL_CondSignal(renderCompletedEvent);
-
-		while ( !smpDataReady )
-			SDL_CondWait(renderCommandsEvent, smpMutex);
-
-		data = (void *)smpData;
-	}
-	SDL_UnlockMutex(smpMutex);
-
-	GLimp_SetCurrentContext(opengl_context);
-
-	return data;
-}
-
-/*
-===============
-GLimp_FrontEndSleep
-===============
-*/
-void GLimp_FrontEndSleep( void )
-{
-	SDL_LockMutex(smpMutex);
-	{
-		while ( smpData )
-			SDL_CondWait(renderCompletedEvent, smpMutex);
-	}
-	SDL_UnlockMutex(smpMutex);
-
-	GLimp_SetCurrentContext(opengl_context);
-}
-
-/*
-===============
-GLimp_WakeRenderer
-===============
-*/
-void GLimp_WakeRenderer( void *data )
-{
-	GLimp_SetCurrentContext(NULL);
-
-	SDL_LockMutex(smpMutex);
-	{
-		assert( smpData == NULL );
-		smpData = data;
-		smpDataReady = qtrue;
-
-		// after this, the renderer can continue through GLimp_RendererSleep
-		SDL_CondSignal(renderCommandsEvent);
-	}
-	SDL_UnlockMutex(smpMutex);
-}
-
-#else
-
-// No SMP - stubs
-void GLimp_RenderThreadWrapper( void *arg )
-{
-}
-
-qboolean GLimp_SpawnRenderThread( void (*function)( void ) )
-{
-	ri.Printf( PRINT_WARNING, "ERROR: SMP support was disabled at compile time\n");
-	return qfalse;
-}
-
-void *GLimp_RendererSleep( void )
-{
-	return NULL;
-}
-
-void GLimp_FrontEndSleep( void )
-{
-}
-
-void GLimp_WakeRenderer( void *data )
-{
-}
-
-#endif

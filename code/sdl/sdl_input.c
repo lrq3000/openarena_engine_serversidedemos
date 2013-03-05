@@ -30,7 +30,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../renderer/tr_local.h"
 #include "../client/client.h"
 #include "../sys/sys_local.h"
 
@@ -976,7 +975,7 @@ void IN_Frame( void )
 	IN_ProcessEvents( );
 
 	// If not DISCONNECTED (main menu) or ACTIVE (in game), we're loading
-	loading = !!( clc.state != CA_DISCONNECTED && clc.state != CA_ACTIVE );
+	loading = ( clc.state != CA_DISCONNECTED && clc.state != CA_ACTIVE );
 
 	if( !Cvar_VariableIntegerValue("r_fullscreen") && ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) )
 	{

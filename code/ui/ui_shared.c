@@ -345,7 +345,7 @@ qboolean PC_Float_Parse(int handle, float *f) {
 		negative = qtrue;
 	}
 	if (token.type != TT_NUMBER) {
-		PC_SourceError(handle, "expected float but found %s\n", token.string);
+		PC_SourceError(handle, "expected float but found %s", token.string);
 		return qfalse;
 	}
 	if (negative)
@@ -425,7 +425,7 @@ qboolean PC_Int_Parse(int handle, int *i) {
 		negative = qtrue;
 	}
 	if (token.type != TT_NUMBER) {
-		PC_SourceError(handle, "expected integer but found %s\n", token.string);
+		PC_SourceError(handle, "expected integer but found %s", token.string);
 		return qfalse;
 	}
 	*i = token.intvalue;
@@ -3831,13 +3831,16 @@ void Item_OwnerDraw_Paint(itemDef_t *item) {
 
 void Item_Paint(itemDef_t *item) {
   vec4_t red;
-  menuDef_t *parent = (menuDef_t*)item->parent;
+  menuDef_t *parent;
+
   red[0] = red[3] = 1;
   red[1] = red[2] = 0;
 
   if (item == NULL) {
     return;
   }
+
+  parent = (menuDef_t*)item->parent;
 
   if (item->window.flags & WINDOW_ORBITING) {
     if (DC->realTime > item->window.nextTime) {
@@ -4908,7 +4911,7 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 	pass = 0;
 	while ( 1 ) {
 		if (!trap_PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu item\n");
+			PC_SourceError(handle, "end of file inside menu item");
 			return qfalse;
 		}
 
@@ -4955,7 +4958,7 @@ qboolean ItemParse_cvarFloatList( itemDef_t *item, int handle ) {
 
 	while ( 1 ) {
 		if (!trap_PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu item\n");
+			PC_SourceError(handle, "end of file inside menu item");
 			return qfalse;
 		}
 
@@ -5124,6 +5127,42 @@ void Item_SetupKeywordHash(void) {
 
 /*
 ===============
+Item_ApplyHacks
+
+Hacks to fix issues with Team Arena menu scripts
+===============
+*/
+static void Item_ApplyHacks( itemDef_t *item ) {
+
+	// Fix length of favorite address in createfavorite.menu
+	if ( item->type == ITEM_TYPE_EDITFIELD && item->cvar && !Q_stricmp( item->cvar, "ui_favoriteAddress" ) ) {
+		editFieldDef_t *editField = (editFieldDef_t *)item->typeData;
+
+		// enough to hold an IPv6 address plus null
+		if ( editField->maxChars < 48 ) {
+			Com_Printf( "Extended create favorite address edit field length to hold an IPv6 address\n" );
+			editField->maxChars = 48;
+		}
+	}
+
+	if ( item->type == ITEM_TYPE_EDITFIELD && item->cvar && ( !Q_stricmp( item->cvar, "ui_Name" ) || !Q_stricmp( item->cvar, "ui_findplayer" ) ) ) {
+		editFieldDef_t *editField = (editFieldDef_t *)item->typeData;
+
+		// enough to hold a full player name
+		if ( editField->maxChars < MAX_NAME_LENGTH ) {
+			if ( editField->maxPaintChars > editField->maxChars ) {
+				editField->maxPaintChars = editField->maxChars;
+			}
+
+			Com_Printf( "Extended player name field using cvar %s to %d characters\n", item->cvar, MAX_NAME_LENGTH );
+			editField->maxChars = MAX_NAME_LENGTH;
+		}
+	}
+
+}
+
+/*
+===============
 Item_Parse
 ===============
 */
@@ -5139,11 +5178,12 @@ qboolean Item_Parse(int handle, itemDef_t *item) {
 	}
 	while ( 1 ) {
 		if (!trap_PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu item\n");
+			PC_SourceError(handle, "end of file inside menu item");
 			return qfalse;
 		}
 
 		if (*token.string == '}') {
+			Item_ApplyHacks( item );
 			return qtrue;
 		}
 
@@ -5549,7 +5589,7 @@ qboolean Menu_Parse(int handle, menuDef_t *menu) {
 
 		memset(&token, 0, sizeof(pc_token_t));
 		if (!trap_PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu\n");
+			PC_SourceError(handle, "end of file inside menu");
 			return qfalse;
 		}
 

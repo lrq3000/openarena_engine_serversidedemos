@@ -103,7 +103,6 @@ static cvarTable_t		gameCvarTable[] = {
 	{ NULL, "gamename", GAMEVERSION , CVAR_SERVERINFO | CVAR_ROM, 0, qfalse  },
 	{ NULL, "gamedate", __DATE__ , CVAR_ROM, 0, qfalse  },
 	{ &g_restarted, "g_restarted", "0", CVAR_ROM, 0, qfalse  },
-	{ NULL, "sv_mapname", "", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse  },
 
 	// latched vars
 	{ &g_gametype, "g_gametype", "0", CVAR_SERVERINFO | CVAR_USERINFO | CVAR_LATCH, 0, qfalse  },
@@ -244,7 +243,7 @@ void QDECL G_Printf( const char *fmt, ... ) {
 	Q_vsnprintf (text, sizeof(text), fmt, argptr);
 	va_end (argptr);
 
-	trap_Printf( text );
+	trap_Print( text );
 }
 
 void QDECL G_Error( const char *fmt, ... ) {
@@ -358,6 +357,7 @@ void G_RegisterCvars( void ) {
 	if ( g_gametype.integer < 0 || g_gametype.integer >= GT_MAX_GAME_TYPE ) {
 		G_Printf( "g_gametype %i is out of range, defaulting to 0\n", g_gametype.integer );
 		trap_Cvar_Set( "g_gametype", "0" );
+		trap_Cvar_Update( &g_gametype );
 	}
 
 	level.warmupModificationCount = g_warmup.modificationCount;
@@ -545,7 +545,7 @@ void QDECL Com_Error ( int level, const char *error, ... ) {
 	Q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
 
-	G_Error( "%s", text);
+	trap_Error( text );
 }
 
 void QDECL Com_Printf( const char *msg, ... ) {
@@ -556,7 +556,7 @@ void QDECL Com_Printf( const char *msg, ... ) {
 	Q_vsnprintf (text, sizeof(text), msg, argptr);
 	va_end (argptr);
 
-	G_Printf ("%s", text);
+	trap_Print( text );
 }
 
 /*
@@ -1083,7 +1083,7 @@ void ExitLevel (void) {
 		cl->ps.persistant[PERS_SCORE] = 0;
 	}
 
-	// we need to do this here before chaning to CON_CONNECTING
+	// we need to do this here before changing to CON_CONNECTING
 	G_WriteSessionData();
 
 	// change all client states to connecting, so the early players into the
@@ -1232,7 +1232,7 @@ void CheckIntermissionExit( void ) {
 		if ( cl->pers.connected != CON_CONNECTED ) {
 			continue;
 		}
-		if ( g_entities[cl->ps.clientNum].r.svFlags & SVF_BOT ) {
+		if ( g_entities[i].r.svFlags & SVF_BOT ) {
 			continue;
 		}
 
@@ -1361,10 +1361,6 @@ void CheckExitRules( void ) {
 			LogExit( "Timelimit hit." );
 			return;
 		}
-	}
-
-	if ( level.numPlayingClients < 2 ) {
-		return;
 	}
 
 	if ( g_gametype.integer < GT_CTF && g_fraglimit.integer ) {
@@ -1526,7 +1522,12 @@ void CheckTournament( void ) {
 		// if all players have arrived, start the countdown
 		if ( level.warmupTime < 0 ) {
 			// fudge by -1 to account for extra delays
-			level.warmupTime = level.time + ( g_warmup.integer - 1 ) * 1000;
+			if ( g_warmup.integer > 1 ) {
+				level.warmupTime = level.time + ( g_warmup.integer - 1 ) * 1000;
+			} else {
+				level.warmupTime = 0;
+			}
+
 			trap_SetConfigstring( CS_WARMUP, va("%i", level.warmupTime) );
 			return;
 		}
@@ -1644,11 +1645,14 @@ void CheckTeamLeader( int team ) {
 				break;
 			}
 		}
-		for ( i = 0 ; i < level.maxclients ; i++ ) {
-			if (level.clients[i].sess.sessionTeam != team)
-				continue;
-			level.clients[i].sess.teamLeader = qtrue;
-			break;
+
+		if (i >= level.maxclients) {
+			for ( i = 0 ; i < level.maxclients ; i++ ) {
+				if (level.clients[i].sess.sessionTeam != team)
+					continue;
+				level.clients[i].sess.teamLeader = qtrue;
+				break;
+			}
 		}
 	}
 }
