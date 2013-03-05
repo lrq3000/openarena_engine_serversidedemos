@@ -1,5 +1,5 @@
-Server-side demos patch (entities/events oriented) for OpenArena v0.8.8 engine + ioquake3 r2224
-===============================================================================================
+Server-side demos patch (entities/events oriented) for OpenArena v0.8.8 engine + ioquake3 on github
+===================================================================================================
 
 DESCRIPTION
 -----------
@@ -9,7 +9,7 @@ The approach used here is entity/event oriented demo recording, which means that
 
 This implementation has been made as generic as possible, and so it should work for any mod based on ioquake3 or Quake 3 Arena. It was also cleaned up and separated as much as possible from the core code, leaving a minimum of changes to the core files, so it should be easily portable to any version of ioquake3 >= r1910 (maybe also with a few prior versions).
 
-NOTE: this is a port from OpenArena v0.8.8 to OA+ioquake3, this should be even more close to the original ioquake3 code.
+NOTE: this is a port from OpenArena v0.8.8 to OA+ioquake3, this should be even more close to the original ioquake3 code (in fact this patch is compiled against the latest ioquake3 release on github + openarena, see github.com/lrq3000/openarena_engine repo).
 
 FEATURES
 --------
