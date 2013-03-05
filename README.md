@@ -77,6 +77,8 @@ SHOULD DO (but not now)
 		return;
 	}
 
+* When demo replaying a demo client-side with mod switching, sv_cheats is disabled (prevent timescale and other commands to be used)
+
 KNOWN BUGS (WONT FIX FOR NOW)
 -----------------------------
 Below is a list of known bugs or wished features, but if you encounter them, please report anyway. If a bug is reported to be too hampering, it may get fixed in the future.
