@@ -295,4 +295,6 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 
 * when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
-* port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
+* port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c).
+
+* fix: big memory leaks. (stupidly forgot to free the strings when creating and cleaning demoname and cmd strings).
