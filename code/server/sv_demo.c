@@ -103,7 +103,7 @@ qboolean SV_CheckClientCommand( client_t *client, const char *cmd )
 		char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
 		Q_strncpyz(userinfo, cmd+9, MAX_INFO_STRING); // trimming out the "userinfo " substring (because we only need the userinfo string)
 		SV_DemoWriteClientUserinfo(client, (const char*)userinfo); // passing relay to the specialized function for this job
-		free( userinfo );
+		Z_Free( userinfo );
 
 		return qfalse; // we return false if the check wasn't right (meaning that this function does not need to process anything)
 	} else if( !Q_strncmp(cmd, "tell", 4) || !Q_strncmp(cmd, "say_team", 8) ) { // Privacy check: if the command is tell or say_team, we just drop it
@@ -808,7 +808,7 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 					SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client - note: in fact, setting any team (except spectator) will make the engine set the client to a random team, but it's only sessionTeam! so the democlients will still be shown in the right team on the scoreboard, but the engine will consider them in a random team (this has no concrete adverse effect to the demo to my knowledge)
 
-					free( svdnewteamstr );
+					Z_Free( svdnewteamstr );
 				}
 			}
 		}
@@ -890,9 +890,9 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	}
 
 	// Free memory
-	free( userinfo );
-	free( svdoldteam );
-	free( svdnewteam );
+	Z_Free( userinfo );
+	Z_Free( svdoldteam );
+	Z_Free( svdnewteam );
 
 	// Restore context
 	Cmd_RestoreCmdContext();
@@ -1614,11 +1614,11 @@ void SV_DemoStartPlayback(void)
 	}
 
 	// Free memory
-	free( map );
-	free( fs );
-	free( hostname );
-	free( datetime );
-	free( metadata );
+	Z_Free( map );
+	Z_Free( fs );
+	Z_Free( hostname );
+	Z_Free( datetime );
+	Z_Free( metadata );
 
 	// Start reading the first frame
 	Com_Printf("Playing demo %s.\n", sv.demoName); // log that the demo is started here
