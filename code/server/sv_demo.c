@@ -140,11 +140,20 @@ qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore )
 	static char prevcmddata[MAX_STRING_CHARS];
 	static char *prevcmd = prevcmddata;
 
+	const char *cleanedprevcmd = SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS);
+	const char *cleanedcmd = SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS);
+
 	if ( !onlyStore && // if we only want to store, we skip any checking
-	    strlen(prevcmd) > 0 && !Q_stricmp(SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS), SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS)) ) { // check that the previous cmd was different from the current cmd.
+	    strlen(prevcmd) > 0 && !Q_stricmp(cleanedprevcmd, cleanedcmd) ) { // check that the previous cmd was different from the current cmd.
+	    // Clean the vars before exiting the func
+	    Z_Free(cleanedprevcmd);
+	    Z_Free(cleanedcmd);
 		return qfalse; // drop this command, it's a repetition of the previous one
 	} else {
 		Q_strncpyz(prevcmd, cmd, MAX_STRING_CHARS); // memorize the current cmd for the next check (clean the cmd before, because sometimes the same string is issued by the engine with some empty colors?)
+	    // Clean the vars before exiting the func
+	    Z_Free(cleanedprevcmd);
+	    Z_Free(cleanedcmd);
 		return qtrue;
 	}
 }
@@ -1210,7 +1219,9 @@ void SV_DemoAutoDemoRecord(void)
 
 	Com_Printf("DEMO: recording a server-side demo to: %s/svdemos/%s.svdm_%d\n",  strlen(Cvar_VariableString("fs_game")) ?  Cvar_VariableString("fs_game") : BASEGAME, demoname, PROTOCOL_VERSION);
 
-        Cbuf_AddText( va("demo_record %s\n", demoname ) );
+	Cbuf_AddText( va("demo_record %s\n", demoname ) );
+
+	Z_Free(demoname);
 }
 
 /*

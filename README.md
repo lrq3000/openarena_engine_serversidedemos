@@ -233,3 +233,6 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * ExcessivePlus: when replaying a demo, democlients are not spectatable anymore after a variable amount of time, and are set to Away state. This is because of xp_inactivitySpectator timer. This was fixed by setting an appropriate localhost remote addr for the demo clients.
 
 * when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
+
+
+* fix: big memory leaks. (stupidly forgot to free the strings when creating and cleaning demoname and cmd strings).
