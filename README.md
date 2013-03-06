@@ -65,13 +65,21 @@ To update this repo, you can:
     # Or directly with ioquake3
     # git://github.com/ioquake/ioq3.git
 
+    AUTO-PROCEDURE
+    ##############
     # Then try to pull + rebase the changes automatically
     git pull --rebase upstream master
 
     # If it works, then all is done! You have an updated version on your computer. You can stop here and just compile the engine using the tutorials in the ioq3 wiki: http://wiki.ioquake3.org/Building_ioquake3
     # PS: for Windows, use the cygwin tutorial, don't try mingw unless you are very experienced and have got a lot of spare time to mess with the weird errors you will get.
 
+    MANUAL PROCEDURE
+    ################
     # Else, you have to redo the process but manually this time. Following steps:
+    
+    # First, you have to reinitialize you repo, else it won't accept you do anything:
+    $ git rebase --abort
+    $ git reset --hard origin/master
 
     # Git rebase interactive so that you get the list of the last commits. This will open you a text file in your default text editor program. What you have to do here is to cut all the lines that concerns commits about the sv_demo patch. Then paste these lines in a temporary text file for you (we will later use the SHA code of the commmits).
     git rebase HEAD~10 --interactive
