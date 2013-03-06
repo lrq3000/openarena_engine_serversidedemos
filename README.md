@@ -49,6 +49,58 @@ Special cvars:
 * sv_democlients : show number of democlients (automatically managed, this is a read-only cvar)
 * sv_demoState : show the current demo state (0: none, 1: waiting to play a demo, 2: demo playback, 3: waiting to stop a demo, 4: demo recording)
 
+UPDATE ON GIT
+-------------
+
+Just like the openarena_engine repo, this one was rebased onto the latest openarena_engine repo (ioquake3+OA088), so that all changes from ioquake3 to openarena are on top of the latest ioquake3 changes, and all the changes from openarena to this sv_demo patch are on top of the openarena commits. Thus, you have a linear commit graph which is easy to rebase against new versions, and the history is more human readable.
+
+To update this repo, you can:
+
+    # First clone the git repo locally on your computer
+    git clone git://github.com/lrq3000/openarena_engine_serversidedemos.git
+
+    # Then either sync with openarena_engine
+    git remote add upstream git://github.com/lrq3000/openarena_engine.git
+
+    # Or directly with ioquake3
+    # git://github.com/ioquake/ioq3.git
+
+    # Then try to pull + rebase the changes automatically
+    git pull --rebase upstream master
+
+    # If it works, then all is done! You have an updated version on your computer. You can stop here and just compile the engine using the tutorials in the ioq3 wiki: http://wiki.ioquake3.org/Building_ioquake3
+    # PS: for Windows, use the cygwin tutorial, don't try mingw unless you are very experienced and have got a lot of spare time to mess with the weird errors you will get.
+
+    # Else, you have to redo the process but manually this time. Following steps:
+
+    # Git rebase interactive so that you get the list of the last commits. This will open you a text file in your default text editor program. What you have to do here is to cut all the lines that concerns commits about the sv_demo patch. Then paste these lines in a temporary text file for you (we will later use the SHA code of the commmits).
+    git rebase HEAD~10 --interactive
+
+    # Now you should have a clean repo without the sv_demo commits, only an old revision of the openarena_engine.
+
+    # We will now sync to the latest changes of openarena_engine or ioquake3:
+    git pull -s recursive -X theirs upstream master
+    # This will pull all remote changes and accept them automatically.
+
+    # Now, you should have a clean repo synced to the latest revision of the engine. We just have now to reapply the sv_demo commits one by one.
+
+    # Reopen the text file where you pasted those sv_demo commits lines before (when we did rebase --interactive), and follow the commits in the natural order: from the top to the bottom. The top commit being the oldest one, and the lowest the latest.
+    # You have to pick the oldest commit first, then to the more recent and so on. Look at the SHA code (the second column after the command "pick"), and copy this SHA code below in place of 617a:
+    git cherry-pick 617a
+    # This command will pick this very specific commit and will try to reapply it.
+    # It will try to automatically merge the conflicts.
+
+    # In the case there are some unresolved conflicts, you can resolve them manually by doing:
+    git mergetool
+
+    # If you resolved manually the conflicts, then you have to do:
+    git commit
+
+    # And then, you can continue onto the next sv_demo commit:
+    git cherry-pick ...
+
+    # Until you reapplied all the commits, and voila, you have an up-to-date engine with the sv_demo patch!
+
 DEV NOTES
 ---------
 
