@@ -453,8 +453,8 @@ qboolean SV_CheckGameCommand( const char *cmd );
 qboolean SV_CheckConfigString( int cs_index, const char *cs_string );
 qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore );
 void SV_DemoFilterClientUserinfo( const char *userinfo );
-char *SV_CleanFilename( char *str );
-char *SV_CleanStrCmd( char *str, int MAXCONST );
+char *SV_CleanFilename( char *string );
+char *SV_CleanStrCmd( char *string );
 char *SV_GenerateDateTime(void);
 
 //
