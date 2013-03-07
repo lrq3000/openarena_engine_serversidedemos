@@ -139,21 +139,23 @@ qboolean SV_CheckLastCmd( const char *cmd, qboolean onlyStore )
 {
 	static char prevcmddata[MAX_STRING_CHARS];
 	static char *prevcmd = prevcmddata;
+    char *cleanedprevcmd = malloc ( MAX_STRING_CHARS * sizeof * cleanedprevcmd );
+    char *cleanedcmd = malloc ( MAX_STRING_CHARS * sizeof * cleanedcmd );
 
-	const char *cleanedprevcmd = SV_CleanStrCmd((char *)prevcmd, MAX_STRING_CHARS);
-	const char *cleanedcmd = SV_CleanStrCmd((char *)cmd, MAX_STRING_CHARS);
+	Q_strncpyz(cleanedprevcmd, SV_CleanStrCmd(va("%s", (char *)prevcmd)), MAX_STRING_CHARS);
+	Q_strncpyz(cleanedcmd, SV_CleanStrCmd(va("%s", (char *)cmd)), MAX_STRING_CHARS);
 
 	if ( !onlyStore && // if we only want to store, we skip any checking
 	    strlen(prevcmd) > 0 && !Q_stricmp(cleanedprevcmd, cleanedcmd) ) { // check that the previous cmd was different from the current cmd.
 	    // Clean the vars before exiting the func
-	    Z_Free(cleanedprevcmd);
-	    Z_Free(cleanedcmd);
+	    free(cleanedprevcmd);
+	    free(cleanedcmd);
 		return qfalse; // drop this command, it's a repetition of the previous one
 	} else {
 		Q_strncpyz(prevcmd, cmd, MAX_STRING_CHARS); // memorize the current cmd for the next check (clean the cmd before, because sometimes the same string is issued by the engine with some empty colors?)
 	    // Clean the vars before exiting the func
-	    Z_Free(cleanedprevcmd);
-	    Z_Free(cleanedcmd);
+	    free(cleanedprevcmd);
+	    free(cleanedcmd);
 		return qtrue;
 	}
 }
@@ -227,14 +229,10 @@ SV_CleanFilename
 Attempts to clean invalid characters from a filename that may prevent the demo to be stored on the filesystem
 ====================
 */
-char *SV_CleanFilename( char *str ) {
-	char*	string = malloc ( MAX_NAME_LENGTH * sizeof * string );
-
+char *SV_CleanFilename( char *string ) {
 	char*	d;
 	char*	s;
 	int		c;
-
-	Q_strncpyz(string, str, MAX_NAME_LENGTH);
 
 	s = string;
 	d = string;
@@ -261,17 +259,12 @@ char *SV_CleanFilename( char *str ) {
 SV_CleanStrCmd
 
 Same as Q_CleanStr but also remove any ^s or special empty color created by the engine in a gamecommand.
-Note: also another difference is that it doesn't modify the input string in the processing, only returns the new one.
 ====================
 */
-char *SV_CleanStrCmd( char *str, int MAXCONST ) {
-	char*	string = malloc ( MAXCONST * sizeof * string );
-
+char *SV_CleanStrCmd( char *string ) {
 	char*	d;
 	char*	s;
 	int		c;
-
-	Q_strncpyz(string, str, MAXCONST);
 
 	s = string;
 	d = string;
@@ -1206,22 +1199,25 @@ void SV_DemoAutoDemoRecord(void)
 {
 	qtime_t now;
 	Com_RealTime( &now );
+    char *demoname = malloc ( MAX_NAME_LENGTH * sizeof * demoname );
+    
 
-	const char *demoname = va( "%s_%04d-%02d-%02d-%02d-%02d-%02d_%s",
-			SV_CleanFilename(sv_hostname->string),
+	Q_strncpyz(demoname, va( "%s_%04d-%02d-%02d-%02d-%02d-%02d_%s",
+			SV_CleanFilename(va("%s", sv_hostname->string)),
                         1900 + now.tm_year,
                         1 + now.tm_mon,
                         now.tm_mday,
                         now.tm_hour,
                         now.tm_min,
                         now.tm_sec,
-                        SV_CleanFilename(Cvar_VariableString( "mapname" )) );
+                        SV_CleanFilename(Cvar_VariableString( "mapname" )) ),
+                        MAX_NAME_LENGTH);
 
 	Com_Printf("DEMO: recording a server-side demo to: %s/svdemos/%s.svdm_%d\n",  strlen(Cvar_VariableString("fs_game")) ?  Cvar_VariableString("fs_game") : BASEGAME, demoname, PROTOCOL_VERSION);
 
 	Cbuf_AddText( va("demo_record %s\n", demoname ) );
 
-	Z_Free(demoname);
+	free(demoname);
 }
 
 /*
