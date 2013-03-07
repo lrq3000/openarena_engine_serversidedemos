@@ -10,9 +10,11 @@ sense to deviate.
 OpenArena 0.8.8 uses r1910 ioquake3 code.  This code currently targets
 the ioq3 github repo, which is above r2398 (latest rev on SVN).
 
-This port was originally made by Undeadzy (https://github.com/undeadzy/openarena_engine).
+This port was originally made by Undeadzy (https://github.com/undeadzy/openarena_engine), so all credits go to him.
 
-This repo is different through: while Undeadzy chose to fetch+merge the changes (thus interleaving and keeping the commits in their original chronology, but mixing between ioquake3 commits and openarena_engine), here the choice was to fetch+rebase the commits, so that you get the ioquake3 commits all in their space, and then on top you get the openarena_engine commits. I think this linear graph is better for our purpose since it should help maintaining future versions of this engine and keep track of the changes from the ioquake3 engine (which BTW merged a lot of changes from openarena in the past months).
+This is a CLEAN PATCH: it was redone manually from scratch, thus it contains only the minimal subset of changes that OA 0.8.8 applied to ioquake3, while keeping the maximum of ioquake3 original code (and when I say a maximum, I mean it - just check the diff to see for yourself).
+
+This repo is different from Undeadzy's original repo: while Undeadzy chose to fetch+merge the changes (thus interleaving and keeping the commits in their original chronology, but mixing between ioquake3 commits and openarena_engine), here the choice was to fetch+rebase the commits, so that you get the ioquake3 commits all in their space, and then on top you get the openarena_engine commits. I think this linear graph is better for our purpose since it should help maintaining future versions of this engine and keep track of the changes from the ioquake3 engine (which BTW merged a lot of changes from openarena in the past months).
 
 Also, I explain below how to update this repo with the latest ioquake3 repo on github.
 
