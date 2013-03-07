@@ -1606,8 +1606,8 @@ Q3ROAOBJ = \
   $(B)/renderer_oa/tr_bloom.o \
   $(B)/renderer_oa/tr_extensions.o \
   \
-  $(B)/renderer/sdl_gamma.o \
-  $(B)/renderer/sdl_glimp.o
+  $(B)/renderer_oa/sdl_gamma.o \
+  $(B)/renderer_oa/sdl_glimp.o
 
 
 Q3ROBJ = \
@@ -1658,10 +1658,10 @@ ifneq ($(USE_RENDERER_DLOPEN), 0)
     $(B)/renderergl1/tr_subs.o
 
   Q3ROAOBJ += \
-    $(B)/renderer/q_shared.o \
-    $(B)/renderer/puff.o \
-    $(B)/renderer/q_math.o \
-    $(B)/renderer/tr_subs.o
+    $(B)/renderergl1/q_shared.o \
+    $(B)/renderergl1/puff.o \
+    $(B)/renderergl1/q_math.o \
+    $(B)/renderergl1/tr_subs.o
 
 endif
 
