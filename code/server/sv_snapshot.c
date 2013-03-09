@@ -324,7 +324,8 @@ static void SV_AddEntitiesVisibleFromPoint( vec3_t origin, clientSnapshot_t *fra
 			continue;
 		}
 
-		if (ent->s.number != e) {
+		if (ent->s.number != e &
+            !(sv.demoState == DS_PLAYBACK || sv.demoState == DS_WAITINGPLAYBACK)) { // if a server-side demo is being replayed, we WANT to set the ent-s.number !
 			Com_DPrintf ("FIXING ENT->S.NUMBER!!!\n");
 			ent->s.number = e;
 		}
