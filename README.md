@@ -120,7 +120,7 @@ NOTE: This was merged in a patch in the ioquake3 project, and this fix is now of
 TODO
 ----
 
-* None
+* Compatibility with maps containing mover objects (like moving platforms of Kaos2): "Reached_BinaryMover: bad moverState" error.
 
 SHOULD DO (but not now)
 -----------------------
@@ -297,4 +297,8 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c).
 
-* fix: big memory leaks. (stupidly forgot to free the strings when creating and cleaning demoname and cmd strings).
+* fix: big memory leaks, Z_Free pointer errors and removed a few useless mallocs. Thank's to Valgrind (use +set vm_game 1 to use Valgrind with OA, else with any other value it won't work).
+
+* fix: svdemo filenames were truncated, now they should have more length to spare
+
+* fix: Compatibility with OA 0.8.8: fix: fixed "FIXING ENT->S.NUMBER!!!" error, crashing demo playback with OA > 0.8.5. Now, the patch is compatible with OA 0.8.8
