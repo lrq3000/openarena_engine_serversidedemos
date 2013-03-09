@@ -1199,7 +1199,7 @@ void SV_DemoAutoDemoRecord(void)
 {
 	qtime_t now;
 	Com_RealTime( &now );
-    char *demoname = malloc ( MAX_NAME_LENGTH * sizeof * demoname );
+    char *demoname = malloc ( MAX_QPATH * sizeof * demoname );
     
 
 	Q_strncpyz(demoname, va( "%s_%04d-%02d-%02d-%02d-%02d-%02d_%s",
@@ -1211,7 +1211,7 @@ void SV_DemoAutoDemoRecord(void)
                         now.tm_min,
                         now.tm_sec,
                         SV_CleanFilename(Cvar_VariableString( "mapname" )) ),
-                        MAX_NAME_LENGTH);
+                        MAX_QPATH);
 
 	Com_Printf("DEMO: recording a server-side demo to: %s/svdemos/%s.svdm_%d\n",  strlen(Cvar_VariableString("fs_game")) ?  Cvar_VariableString("fs_game") : BASEGAME, demoname, PROTOCOL_VERSION);
 
