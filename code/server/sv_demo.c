@@ -103,7 +103,7 @@ qboolean SV_CheckClientCommand( client_t *client, const char *cmd )
 		char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
 		Q_strncpyz(userinfo, cmd+9, MAX_INFO_STRING); // trimming out the "userinfo " substring (because we only need the userinfo string)
 		SV_DemoWriteClientUserinfo(client, (const char*)userinfo); // passing relay to the specialized function for this job
-		Z_Free( userinfo );
+		free( userinfo );
 
 		return qfalse; // we return false if the check wasn't right (meaning that this function does not need to process anything)
 	} else if( !Q_strncmp(cmd, "tell", 4) || !Q_strncmp(cmd, "say_team", 8) ) { // Privacy check: if the command is tell or say_team, we just drop it
@@ -810,7 +810,7 @@ void SV_DemoReadClientConfigString( msg_t *msg )
 
 					SV_ExecuteClientCommand(&svs.clients[num], va("team %s", svdnewteamstr), qtrue); // workaround to force the server's gamecode and clients to update the team for this client - note: in fact, setting any team (except spectator) will make the engine set the client to a random team, but it's only sessionTeam! so the democlients will still be shown in the right team on the scoreboard, but the engine will consider them in a random team (this has no concrete adverse effect to the demo to my knowledge)
 
-					Z_Free( svdnewteamstr );
+					free( svdnewteamstr );
 				}
 			}
 		}
@@ -842,7 +842,7 @@ Note: this function also manage the initial team of democlients when demo record
 void SV_DemoReadClientUserinfo( msg_t *msg )
 {
 	client_t *client;
-	char	*userinfo = malloc( MAX_INFO_STRING * sizeof *userinfo);
+	char	*userinfo; // = malloc( MAX_INFO_STRING * sizeof *userinfo);
 	int num;
 
 	// Save context
@@ -892,9 +892,9 @@ void SV_DemoReadClientUserinfo( msg_t *msg )
 	}
 
 	// Free memory
-	Z_Free( userinfo );
-	Z_Free( svdoldteam );
-	Z_Free( svdnewteam );
+	//free( userinfo ); // automatically freed by glibc, if uncommented will produce a crash
+	free( svdoldteam );
+	free( svdnewteam );
 
 	// Restore context
 	Cmd_RestoreCmdContext();
@@ -1375,7 +1375,7 @@ void SV_DemoStartPlayback(void)
 	char *fs = malloc( MAX_QPATH * sizeof *fs );
 	char *hostname = malloc( MAX_NAME_LENGTH * sizeof *hostname );
 	char *datetime = malloc( 1024 * sizeof *datetime ); // there's no limit in the whole engine specifically designed for dates and time...
-	char *metadata = malloc( 1024 * sizeof * metadata ); // used to store the current metadata index
+	char *metadata; // = malloc( 1024 * sizeof * metadata ); // used to store the current metadata index
 
 	// Init vars with empty values (to avoid compilation warnings)
 	r = i = clients = fps = gametype = timelimit = fraglimit = capturelimit = 0;
@@ -1621,11 +1621,11 @@ void SV_DemoStartPlayback(void)
 	}
 
 	// Free memory
-	Z_Free( map );
-	Z_Free( fs );
-	Z_Free( hostname );
-	Z_Free( datetime );
-	Z_Free( metadata );
+	free( map );
+	free( fs );
+	free( hostname );
+	free( datetime );
+	//free( metadata ); // it seems glibc already frees this pointer automatically since the malloc was removed, if we specify this line we'll get a crash
 
 	// Start reading the first frame
 	Com_Printf("Playing demo %s.\n", sv.demoName); // log that the demo is started here
