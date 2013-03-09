@@ -30,7 +30,7 @@ Simply compile the code into a binary, and use these binaries. You do not need t
 
 Servers obviously need these binaries to record and play demos.
 
-Clients also need these binaries to play demos.
+Clients also need these binaries to play demos (unless they connect to a server replaying the demos, in this case they don't need anything).
 
 USAGE
 -----
@@ -60,6 +60,8 @@ NOTE: This was merged in a patch in the ioquake3 project, and this fix is now of
 TODO
 ----
 
+* Compatibility with maps containing mover objects (like moving platforms of Kaos2): "Reached_BinaryMover: bad moverState" error.
+
 * port to the latest openarena engine based on the latest ioquake3 (should change the demoExt management in files.c)
 DONE, check the "latest" branch of the project on github.
 
@@ -78,6 +80,8 @@ SHOULD DO (but not now)
 		return;
 	}
 
+* When demo replaying a demo client-side with mod switching, sv_cheats is disabled (prevent timescale and other commands to be used)
+
 KNOWN BUGS (WONT FIX FOR NOW)
 -----------------------------
 Below is a list of known bugs or wished features, but if you encounter them, please report anyway. If a bug is reported to be too hampering, it may get fixed in the future.
@@ -93,7 +97,7 @@ the best would be a polymorphic recursive function that would automatically read
 currently: only gentity_t->entityShared_t and gentity_t->entityState_t and playerState_t are recorded. Other fields (except health and speed) are NOT recorded (eg: gclient_s *client, gitem_t *item, etc..).
 Please note that we already save a maximum of data, in fact all the data that will ever be needed. But this is not generic (we pick each info we want), maybe it would be better to have a generic save function for the whole data structure, easily adaptable to any game that adds more data fields?
 
-* SendConsoleCommand save in demos (will record postgame data and teamtask) G_SEND_CONSOLE_COMMAND and reproduce with Cbuf_ExecuteText( args[1], VMA(2) ); - not a good idea because there are map_restart commands that may be caught, and we don't want that (and without this hook, the patch really works pretty well).
+* SendConsoleCommand save in demos (will record postgame data and teamtask) G_SEND_CONSOLE_COMMAND and reproduce with Cbuf_ExecuteText( args[1], VMA(2) ); - not a good idea because there are map_restart commands that may be catched, and we don't want that (and without this hook, the patch really works pretty well).
 
 * Prevent all recorded sv_game.c commands to be accepted when demo_playback? Bad idea I think.
 
@@ -107,7 +111,7 @@ Please note that we already save a maximum of data, in fact all the data that wi
 
 * When loading a demo on a server that was recorded on another mod than the one currently loaded, when the server will switch automatically the mod, it will disconnect all connected players with the message "Game Directory Changed". This is normal and unavoidable (except if you find a genius way to keep the server running while hotswapping the mod, then submit your patch to ioquake3).
 
-* Non-player entities health is NOT recorded (but players health IS recorded). It could be, now that a get function was done, but it would complexify the code and I'm not sure if this would really benefit something. When entities run out of health, they are anyway destroyed (since their state is recorded), but their health not. This means that the health that is shown in the crosshair when aiming at an entity will not be updated in a demo.
+* Non-player entities health is NOT recorded. It could be, now that a get function was done, but it would complexify the code and I'm not sure if this would really benefit something. When entities run out of health, they are anyway destroyed (since their state is recorded), but their health not. This means that the health that is shown in the crosshair when aiming at an entity will not be updated in a demo.
 
 * set_cvar too? and at startup just like configstrings (will avoid timelimit)? Bad idea too.
 
@@ -139,7 +143,7 @@ because after game_restart need to change again sv_democlients and sv_maxclients
 
 * timelimit, fraglimit, capturelimit store and replay too?
 
-* health gamecode update (set a g_demoPlaying var and from the server I can Cvar_SetValue very easily).
+* health gamecode update (set a g_demoPlaying var and from the server I can Cvar_SetValue very easily).
 
 * forceteam spec only if player is connected
 
@@ -235,4 +239,8 @@ was because of demo initial time that was too small (400) and sv.time too high, 
 * when recording a demo and stopping it, the demo file is still left open and locked until the game/server is closed.
 
 
-* fix: big memory leaks. (stupidly forgot to free the strings when creating and cleaning demoname and cmd strings).
+* fix: big memory leaks, Z_Free pointer errors and removed a few useless mallocs. Thank's to Valgrind (use +set vm_game 1 to use Valgrind with OA, else with any other value it won't work).
+
+* fix: svdemo filenames were truncated, now they should have more length to spare
+
+* fix: Compatibility with OA 0.8.8: fix: fixed "FIXING ENT->S.NUMBER!!!" error, crashing demo playback with OA > 0.8.5. Now, the patch is compatible with OA 0.8.8
