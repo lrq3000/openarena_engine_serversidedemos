@@ -120,7 +120,7 @@ NOTE: This was merged in a patch in the ioquake3 project, and this fix is now of
 TODO
 ----
 
-* Compatibility with maps containing mover objects (like moving platforms of Kaos2): "Reached_BinaryMover: bad moverState" error.
+* Compatibility with maps containing mover objects (like moving platforms of Kaos2): "Reached_BinaryMover: bad moverState" error. Maybe can just remove the msg changing moverState since anyway all entities positions are recorded and reproduced? No need for specialized mover funcs.
 
 SHOULD DO (but not now)
 -----------------------
