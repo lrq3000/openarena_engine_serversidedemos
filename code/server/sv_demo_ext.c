@@ -1,6 +1,6 @@
 /*
 ===========================================================================
-Copyright (C) 2012 Stephen Larroque <lrq3000@gmail.com>
+Copyright (C) 2012-2017 Stephen Larroque <lrq3000@gmail.com>
 
 This file is part of OpenArena.
 
