@@ -45,23 +45,23 @@ Servers obviously need these binaries to record and play demos.
 
 Clients also need these binaries to play demos locally, unless they connect to a server replaying the demos, in this case they don't need anything.
 
-Indeed, a server issuing /demo_play <filename> will be accessible to spectators. This can be useful to replay a big event. This can also be used as a replacement to GTV, since you can read a demo at the same time as it is being written.
+Indeed, a server issuing `/demo_play <filename>` will be accessible to spectators. This can be useful to replay a big event. This can also be used as a replacement to GTV, since you can read a demo at the same time as it is being written.
 USAGE
 -----
 
 Commands:
 
-* demo_play <filename> : playback a server-side demo (to be found, the demo must be in the current mod folder, even if it was recorded with another mod). Note that clients need to go back to the main menu before issuing the /demo_play <filename> command, else the demo won't be found. The demo will automatically switch mods if necessary, and load the correct map.
-* demo_record <filename> : record a server-side demo with the given filename (will be saved in mod/svdemos folder). For automated demo recording, see sv_autoDemo cvar below.
-* demo_stop : stop any playback/recording (will automatically restore any previous setting on the server/client). Note that shutting down the server/quitting the game will not break the demo, the demo will still be readable.
-* status : as with normal clients, when a demo is replaying, democlients will also be shown in the status (with ping DEMO).
+* `demo_play <filename>` : playback a server-side demo (to be found, the demo must be in the current mod folder, even if it was recorded with another mod). Note that clients need to go back to the main menu before issuing the `/demo_play <filename>` command, else the demo won't be found. The demo will automatically switch mods if necessary, and load the correct map.
+* `demo_record <filename>` : record a server-side demo with the given filename (will be saved in mod/svdemos folder). For automated demo recording, see sv_autoDemo cvar below.
+* `demo_stop` : stop any playback/recording (will automatically restore any previous setting on the server/client). Note that shutting down the server/quitting the game will not break the demo, the demo will still be readable.
+* `status` : as with normal clients, when a demo is replaying, democlients will also be shown in the status (with ping DEMO).
 
 Special cvars:
 
-* sv_autoDemo 1 : enable automatic recording of server-side demos (will start at the next map change/map_restart).
-* sv_demoTolerant 1 : enable demo playback compatibility mode. If you have an old server-side demo, or a bit broken, this can maybe allow you to playback this demo nevertheless.
-* sv_democlients : show number of democlients (automatically managed, this is a read-only cvar).
-* sv_demoState : show the current demo state (0: none, 1: waiting to play a demo, 2: demo playback, 3: waiting to stop a demo, 4: demo recording).
+* `sv_autoDemo 1` : enable automatic recording of server-side demos (will start at the next map change/map_restart).
+* `sv_demoTolerant 1` : enable demo playback compatibility mode. If you have an old server-side demo, or a bit broken, this can maybe allow you to playback this demo nevertheless.
+* `sv_democlients` : show number of democlients (automatically managed, this is a read-only cvar).
+* `sv_demoState` : show the current demo state (0: none, 1: waiting to play a demo, 2: demo playback, 3: waiting to stop a demo, 4: demo recording).
 
 
 
