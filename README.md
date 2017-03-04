@@ -122,7 +122,7 @@ TODO
 
 * Compatibility with maps containing mover objects (like moving platforms of Kaos2): "Reached_BinaryMover: bad moverState" error. Maybe can just remove the msg changing moverState since anyway all entities positions are recorded and reproduced? No need for specialized mover funcs.
 
-* Try another approach in another patch: replay network snapshots packets instead of replay entities commands/infos. See TheDoctor patch in the release downloads, but should be extended to support multiview (instead of saving one demo per player). This seems to have been implemented in edawn: http://edawn-mod.org/binaries/quake3e-mv.txt
+* Try another approach in another patch: replay network snapshots packets instead of replay entities commands/infos. See TheDoctor patch in the release downloads, but should be extended to support multiview (instead of saving one demo per player). This seems to have been implemented in edawn: http://edawn-mod.org/binaries/quake3e-mv.txt . EDIT: actually, they provide the patch, if anybody wants to try to extend this into a full GTV replacement: http://edawn-mod.org/forum/viewtopic.php?f=5&t=7
 
 SHOULD DO (but not now)
 -----------------------
