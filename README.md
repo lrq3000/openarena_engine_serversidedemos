@@ -139,6 +139,8 @@ DEV NOTES
 TODO
 ----
 
+* On demo_play, patch always hotswitch the mod, even if we are already in the same mod! This disconnects all players, even when unnecessary. Should check before switching mod if really necessary.
+
 * Update to latest OpenArena v3.0.0a (don't expect this to be done anytime soon, but it should be easy using the [ioquake3 patch](https://github.com/lrq3000/ioq3/tree/server-side-demo), if you want to give it a shot!).
 
 
@@ -166,7 +168,11 @@ KNOWN BUGS (WONT FIX FOR NOW)
 -----------------------------
 Below is a list of known bugs or wished features, but if you encounter them, please report anyway. If a bug is reported to be too hampering, it may get fixed in the future.
 
-* save the minimum correct value for sv_democlients when recording: count the total number of clients (>= CS_ZOMBIE) per frame, and the highest number count will be the good number (or just look at the highest clientid reached since client slots are filled in ascending order).
+* Warmup generate separate demos, because technically the engine reload the whole game after warmup (but not E+ `/ready` since this is managed differently by E+ than warmup).
+
+* Scoreboard and chat might show wrong names (names of spectators instead of the original demo players). This particularly affects E+ because of a different refreshing rate. Not fixable until some E+ dev provide code snippets or help!
+
+* save the minimum correct value for sv_democlients when recording: count the total number of clients (>= CS_ZOMBIE) per frame, and the highest number count will be the good number (or just look at the highest clientid reached since client slots are filled in ascending order). For the moment, sv_democlients will always be set to the maximum number of clients possible, which is sv_maxclients.
 
 * entityShared_t, entityState_t and playerState_t could be normalized with the other functions to put in write functions and use a marker per entity instead of a marker for a whole lot of entities (but maybe this would require more space? but would maybe be better to read the demo, more coherent: one marker, one event). Because for now, these are the only functions that write ALL data for ALL entities at once, instead of one entity per call, and thus, these functions are managed in a special way compared to others.
 
