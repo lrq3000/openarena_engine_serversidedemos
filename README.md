@@ -7,7 +7,9 @@ DESCRIPTION
 -----------
 Fully working server-side demos for ioquake3 and OpenArena are now a reality!
 
-This is the patch for OpenArena. For the ioquake3 patch (compiled on 2017-03-04), see https://github.com/lrq3000/ioq3/tree/server-side-demo .
+This is the patch for OpenArena.
+
+**IMPORTANT NOTE: For the latest patch, compiled only on ioquake3 patch (compiled on 2017-03-04), v1.1.0 with a few additional bugfixes (here the last version is 1.0.0), see https://github.com/lrq3000/ioq3/tree/server-side-demo**
 
 This patch provide a full server-side demos facility for OpenArena v0.8.8 merged with ioquake3 r2224.
 
@@ -46,6 +48,7 @@ Servers obviously need these binaries to record and play demos.
 Clients also need these binaries to play demos locally, unless they connect to a server replaying the demos, in this case they don't need anything.
 
 Indeed, a server issuing `/demo_play <filename>` will be accessible to spectators. This can be useful to replay a big event. This can also be used as a replacement to GTV, since you can read a demo at the same time as it is being written.
+
 USAGE
 -----
 
