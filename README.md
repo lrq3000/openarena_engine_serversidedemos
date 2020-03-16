@@ -9,7 +9,7 @@ Fully working server-side demos for ioquake3 and OpenArena are now a reality!
 
 This is the patch for OpenArena.
 
-**IMPORTANT NOTE: For the latest patch, compiled only on ioquake3 (release 2017-03-04), v1.1.0 with a few additional bugfixes (here the last version is 1.0.0), see https://github.com/lrq3000/ioq3-server-side-demos
+**IMPORTANT NOTE: For the latest patch, compiled only on ioquake3 (release 2017-03-04), v1.1.0 with a few additional bugfixes (here the last version is 1.0.0), see https://github.com/lrq3000/ioq3-server-side-demos**
 
 This patch provide a full server-side demos facility for OpenArena v0.8.8 merged with ioquake3 r2224.
 
